@@ -6,3 +6,10 @@ node_modules
 # CDK asset staging directory
 .cdk.staging
 cdk.out
+
+# Developer files
+.envrc
+ltex.dictionary.en-US.txt
+ltex.disabledRules.en-US.txt
+ltex.hiddenFalsePositives.en-US.txt
+
