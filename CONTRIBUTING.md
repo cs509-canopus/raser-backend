@@ -2,6 +2,19 @@
 
 This document lays out guidelines for contributing to RASER.
 
+## Quick reference
+
+Process for contributing code, from start to end:
+1. Create or claim an issue item on the [RASER project board](https://github.com/orgs/cs509-canopus/projects/2)
+  - Follow the issue creation process laid out below
+2. Create a branch on GitHub and checkout locally
+  - Follow the branch naming convention laid out below
+3. Move the project board item to "in progress"
+4. Develop locally, following a test-driven process, committing and pushing frequently
+5. Before creating a PR, complete the before-merge checklist below
+6. Create a pull request on GitHub according to the instructions below
+7. Move the project board item to "In review"
+
 ## Project board
 
 The first step before writing any code should be to create an item on the 
@@ -18,9 +31,12 @@ which categorizes items into the following categories:
 
 Every item on the project board corresponds to an issue on one of the repositories. 
 
-## Issues
+**Before creating a new item for an issue**, check if an item already exists for it. If an
+item does not have an assignee, you can assign yourself to the item.
 
-Naming should adhere to the following format:
+### Issue creation
+
+The name of the issue should adhere to the following format:
 
 ```
 <type>: <short description>
@@ -47,7 +63,7 @@ Example (see [#1](https://github.com/cs509-canopus/raser-backend/issues/1)):
 docs: create contributing guide
 ```
 
-## Branches
+### Branch naming
 
 Branches should be created from the issue page. One the right sidebar, under Development,
 click "Create a branch" and name it as follows:
@@ -73,7 +89,16 @@ git fetch origin
 git checkout -b <branch-name>
 ```
 
-## Commits
+## Local development
+
+### Test-driven development
+
+When writing code locally, try to follow 
+[test-driven development](https://en.wikipedia.org/wiki/Test-driven_development),
+meaning write test cases **before** writing the implementation. A guide for writing unit
+tests can be found in `docs/testing.md`.
+
+### Commits
 
 When developing a feature locally, you can commit however you want. There is no guidance
 for how to format commit messages or how often to commit. However, it is good practice to
@@ -85,7 +110,11 @@ doing.
 
 ### Before-merge checklist
 
-#todo
+**Before creating a pull request**, run through the following checklist:
+- [ ] Make sure all test cases pass
+- [ ] Run the code formatter: `npm run format`
+- [ ] Run the code linter: `npm run lint`
+- [ ] Try building/compiling everything: `npm run build`
 
 ### Creating the PR
 
