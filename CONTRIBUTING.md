@@ -25,8 +25,8 @@ which categorizes items into the following categories:
 - **Backlog**: starting point for all tasks
 - **Ready**: tasks that are assigned and ready to be started
 - **In progress**: tasks that are currently being worked on
-- **In review**: tasks that are done and have been made into a pull request that are 
-  awaiting review
+- **Pending review**: tasks that are done but have not started being reviewed yet
+- **In review**: tasks that have a PR currently being reviewed
 - **Done**: tasks that have been merged
 
 Every item on the project board corresponds to an issue on one of the repositories. 
