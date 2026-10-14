@@ -91,6 +91,9 @@ git checkout -b <branch-name>
 
 ## Local development
 
+When starting local development, **move the issue item into the "In progress" phase on the
+project board.**
+
 ### Test-driven development
 
 When writing code locally, try to follow 
@@ -152,9 +155,9 @@ to link the PR to an issue (e.g., "Closes `NN`", where `NN` is the issue number)
 Example body:
 
 ```
-- commit a message
-- commit b message
-- commit c message
+- first draft
+- created quick reference and pre-merge checklist
+- added review and merging guidance
 
 Closes #1
 ```
@@ -164,16 +167,25 @@ stage.**
 
 ## Reviewing pull requests
 
-#todo
-- Make sure code is well formatted
-- Checkout locally and run tests
-
+When reviewing pull requests, follow these guidelines to ensure quality and consistency:
+- Prioritize a review over starting new work to keep the project moving forward.
+- Make sure code is well formatted by checking for adherence to the defined coding style 
+  and using automated tools.
+- Ensure that the "happy case" works by testing the code against successful scenarios to 
+  confirm it behaves as expected.
+- Look for edge cases by 
+- Checkout the branch locally and run tests to verify that all test cases pass and that 
+  the new changes do not introduce regressions.
 
 ## Merging pull requests
 
-#todo
-- Squash and merge, and use a [conventional commit message](https://www.conventionalcommits.org/en/v1.0.0/#summary)
+When it comes time to merge, keep these points in mind:
+- Prefer to **squash and merge** to keep the commit history clean. This consolidates all 
+  changes from the feature branch into one commit.
+- Use a [conventional commit message](https://www.conventionalcommits.org/en/v1.0.0/#summary) 
+  for the merge commit to maintain clarity in the change history.
 
+The format of a conventional commit is as follows:
 
 ```
 <type>[optional scope]: <description>
@@ -181,10 +193,20 @@ stage.**
 [optional body]
 ```
 
-Example:
+Where `<type>` is the same used for the issue and pull request, the scope the part of the
+system that the merge is related to, and `<description>` is a short description of the
+changes. Possible scopes for this project include (but are not limited to):
+- `api`: API endpoints
+- `database`: Related to the database
+- `dashboard-page` (or some other page): Related to a specific page
+
+Examples of a merge commit message:
 
 ```
+docs: added contributing guide
+
 feat(api): added /login endpoint to gateway with lambda handler
-```
 
+fix(api): made /login enpdoint parse emails correctly
+```
 
