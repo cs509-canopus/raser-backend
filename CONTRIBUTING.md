@@ -5,10 +5,10 @@ This document lays out guidelines for contributing to RASER.
 ## Quick reference
 
 Process for contributing code, from start to end:
-1. Create or claim an issue item on the [RASER project board](https://github.com/orgs/cs509-canopus/projects/2)
-  - Follow the issue creation process laid out below
-2. Create a branch on GitHub and checkout locally
-  - Follow the branch naming convention laid out below
+1. Create or claim an issue item on the [RASER project board](https://github.com/orgs/cs509-canopus/projects/2).
+   Follow the issue creation process laid out below
+2. Create a branch on GitHub and checkout locally. Follow the branch naming convention 
+   laid out below
 3. Move the project board item to "in progress"
 4. Develop locally, following a test-driven process, committing and pushing frequently
 5. Before creating a PR, complete the before-merge checklist below
@@ -144,8 +144,8 @@ frontend-related PRs should request review from the frontend master. Any PR that
 the database should request review from the database master. If you are one of these roles
 and need a reviewer, then assign someone else of your choosing.
 
-Link the PR to the **project** RASER under the project section in the right sidebar, and
-associate it with the appropriate **milestone**.
+In the right sidebar, associate the project with the appropriate **milestone**. Do not
+link the PR to the RASER project as that will create another entry on the project board.
 
 In the **body** of the PR, include a summary of the changes you made. A list of the
 commits you made on your branch is a valid PR body. **Also**, be sure to include a
