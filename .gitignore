@@ -13,3 +13,6 @@ ltex.dictionary.en-US.txt
 ltex.disabledRules.en-US.txt
 ltex.hiddenFalsePositives.en-US.txt
 
+# direnv
+.envrc
+.direnv
