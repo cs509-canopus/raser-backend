@@ -1,17 +1,15 @@
 #!/usr/bin/env node
 import * as cdk from "aws-cdk-lib/core";
-import { RaserBackendStack } from "../lib/raser-backend-stack";
+import { RaserStage } from "../lib/raser-stage";
 
 const app = new cdk.App();
-new RaserBackendStack(app, "RaserBackendStack", {
-  /* If you don't specify 'env', this stack will be environment-agnostic.
-   * Account/Region-dependent features and context lookups will not work,
-   * but a single synthesized template can be deployed anywhere. */
-  /* Uncomment the next line to specialize this stack for the AWS Account
-   * and Region that are implied by the current CLI configuration. */
-  // env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
-  /* Uncomment the next line if you know exactly what Account and Region you
-   * want to deploy the stack to. */
-  // env: { account: '123456789012', region: 'us-east-1' },
-  /* For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html */
-});
+
+// Shared stages
+const productionStage = new RaserStage(app, "production", {});
+const stagingStage = new RaserStage(app, "staging", {});
+
+// Developer stages
+const asuyerStage = new RaserStage(app, "asuyer", {});
+const mseugiStage = new RaserStage(app, "msegui", {});
+const kchangStage = new RaserStage(app, "kchang", {});
+const kgargStage = new RaserStage(app, "kgarg", {});
