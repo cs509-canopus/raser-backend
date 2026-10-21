@@ -1,5 +1,5 @@
 # Shared helpers for reaching private resources through EIC endpoint -> SSH -> bastion.
-# Sourced by db-connect.sh and test-tunnel.sh. Expects AWS_DEFAULT_REGION to be set.
+# Expects AWS_DEFAULT_REGION to be set.
 
 # stack_output <stack-name> <output-key>
 stack_output() {
