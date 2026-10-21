@@ -1,9 +1,8 @@
 import * as cdk from "aws-cdk-lib";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import { Construct } from "constructs";
-import { SHARED_VPC_NAME, DB_PORT } from "./config";
+import { SHARED_VPC_NAME, DB_PORT, SSH_PORT } from "./config";
 
-const SSH_PORT = 22;
 const BASTION_IDLE_MINUTES = 30;
 
 export class NetworkStack extends cdk.Stack {
@@ -58,8 +57,8 @@ export class NetworkStack extends cdk.Stack {
       allowAllOutbound: true, // only the VPC and the S3 endpoint are routable anyway
     });
 
-    // A security group that will allow access to the database instance, so we can run psql tools,
-    // test queries, etc.,
+    // An EC2 Instance Connect (Eic) security group that will allow access to the
+    // database instance, so we can run psql tools, test queries, etc.,
     this.eicSecurityGroup = new ec2.SecurityGroup(this, "EicSg", {
       vpc: this.vpc,
       securityGroupName: "raser-eic-endpoint",
@@ -75,21 +74,21 @@ export class NetworkStack extends cdk.Stack {
       allowAllOutbound: false,
     });
 
-    // Allow outgoing connections on SSH port (22)
+    // Allow connections leaving EicSg going to BastionSg on SSH port (22) 
     this.eicSecurityGroup.addEgressRule(
       this.bastionSecurityGroup,
       ec2.Port.tcp(SSH_PORT),
       "SSH to bastion only",
     );
 
-    // Allow incoming connections from SSH port (22)
+    // Allow connections arriving to BastionSg from EicSg on SSH port (22) 
     this.bastionSecurityGroup.addIngressRule(
       this.eicSecurityGroup,
       ec2.Port.tcp(SSH_PORT),
       "SSH from EIC endpoint",
     );
 
-    // Allow outgoing connections on the database port (5432)
+    // Allow connections leaving BastionSg going to VPC on DB port (5432)
     this.bastionSecurityGroup.addEgressRule(
       ec2.Peer.ipv4(this.vpc.vpcCidrBlock),
       ec2.Port.tcp(DB_PORT),
@@ -128,7 +127,8 @@ export class NetworkStack extends cdk.Stack {
       `systemctl enable --now raser-idle-stop.timer`,
     );
 
-    // Bastion server EC2 instance, type t4g.nano (lowest cost type), ARM, running Amazon Linux
+    // Bastion server EC2 instance, type t4g.micro (lowest cost type availalble
+    // on free tier), ARM, running Amazon Linux
     this.bastion = new ec2.Instance(this, "Bastion", {
       instanceName: "raser-db-bastion",
       vpc: this.vpc,
