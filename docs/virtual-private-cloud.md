@@ -1,5 +1,9 @@
 # Virtual Private Cloud (VPC)
 
+> [NOTE]
+> This document was generated mostly using Claude code, though it has been checked for 
+> accuracy.
+
 AWS Virtual Private Cloud (VPC) is a service for creating private, isolated networks that
 constructs can communicate within. Anything placed inside a VPC (a database, a Lambda
 function, an EC2 server) gets a private IP address, and by default can only talk to other
@@ -94,7 +98,8 @@ connection takes two hops, and each one is allowed by a matching pair of rules:
 
 1. **Laptop → endpoint → bastion, on port 22 (SSH).** The developer's `aws` CLI opens a
    tunnel to the Instance Connect Endpoint, using their AWS login for authorization. The
-   endpoint then opens an SSH connection to the bastion. This needs:
+   endpoint passes the tunnel on to port 22 on the bastion, and `ssh` on the laptop runs
+   through it, so the SSH session is between the laptop and the bastion. This needs:
    - EicSg egress: SSH (22) to BastionSg. This is EicSg's *only* rule
    - BastionSg ingress: SSH (22) from EicSg. This is the bastion's *only* way in
 
