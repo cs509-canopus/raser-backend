@@ -1,6 +1,6 @@
 # Virtual Private Cloud (VPC)
 
-> [NOTE]
+> [!NOTE]
 > This document was generated mostly using Claude code, though it has been checked for 
 > accuracy.
 
