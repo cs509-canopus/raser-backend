@@ -17,11 +17,15 @@
 import * as cdk from "aws-cdk-lib";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as rds from "aws-cdk-lib/aws-rds";
+import * as ssm from "aws-cdk-lib/aws-ssm";
 import { Construct } from "constructs";
 import {
   SHARED_VPC_NAME,
   SHARED_LAMBDA_SG_NAME, // add these two to lib/config.ts if asuyer's PR #29 hasn't already
   SHARED_BASTION_SG_NAME,
+  SHARED_DB_SECRET_NAME,
+  SHARED_DB_ENDPOINT_SSM_PARAM,
+  SHARED_DB_NAME,
   DB_PORT,
 } from "./config";
 
@@ -59,11 +63,24 @@ export class DatabaseStack extends cdk.Stack {
       description: "Attached to the shared Postgres instance",
       allowAllOutbound: false,
     });
-    dbSg.addIngressRule(lambdaSg, ec2.Port.tcp(DB_PORT), "Postgres from Lambdas");
-    dbSg.addIngressRule(bastionSg, ec2.Port.tcp(DB_PORT), "Postgres from the dev bastion");
+    dbSg.addIngressRule(
+      lambdaSg,
+      ec2.Port.tcp(DB_PORT),
+      "Postgres from Lambdas",
+    );
+    dbSg.addIngressRule(
+      bastionSg,
+      ec2.Port.tcp(DB_PORT),
+      "Postgres from the dev bastion",
+    );
 
     // Auto-generated master credentials, stored in Secrets Manager (never hardcoded).
-    const credentials = rds.Credentials.fromGeneratedSecret("raser_admin");
+    // Pinned to a known secret name (rather than the default auto-generated one) so
+    // ApiStack's Lambdas (issues #13-#15) can find it the same way everything else in
+    // this file finds its shared resources: by a name in config.ts, not a direct import.
+    const credentials = rds.Credentials.fromGeneratedSecret("raser_admin", {
+      secretName: SHARED_DB_SECRET_NAME,
+    });
 
     this.instance = new rds.DatabaseInstance(this, "Postgres", {
       instanceIdentifier: "raser-shared-db",
@@ -91,6 +108,10 @@ export class DatabaseStack extends cdk.Stack {
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       securityGroups: [dbSg],
       credentials,
+      // Named explicitly (issues #13-#15) so there's a real database for the papers/
+      // issues tables to live in — Postgres' own default ("postgres") works but isn't
+      // worth relying on implicitly.
+      databaseName: SHARED_DB_NAME,
       multiAz: false, // single-AZ: Multi-AZ doubles the cost for a student project
       allocatedStorage: 20, // GB; smallest size RDS allows, within the free tier
       storageType: rds.StorageType.GP3,
@@ -110,6 +131,18 @@ export class DatabaseStack extends cdk.Stack {
     });
     new cdk.CfnOutput(this, "DbSecretArn", {
       value: this.instance.secret?.secretArn ?? "none",
+    });
+
+    // Published for issues #13-#15: a Lambda inside the VPC's isolated subnets has no
+    // path to the SSM API at runtime (no NAT, no SSM interface endpoint — see
+    // docs/virtual-private-cloud.md), so it can't call ssm:GetParameter itself either.
+    // Reading this through `ssm.StringParameter.valueForStringParameter` from ApiStack
+    // instead makes CloudFormation resolve it at *deploy* time via the
+    // `AWS::SSM::Parameter::Value<String>` parameter type, so the Lambda just gets a
+    // plain env var — no runtime AWS API call needed on either side.
+    new ssm.StringParameter(this, "DbEndpointParam", {
+      parameterName: SHARED_DB_ENDPOINT_SSM_PARAM,
+      stringValue: this.instance.dbInstanceEndpointAddress,
     });
   }
 }
