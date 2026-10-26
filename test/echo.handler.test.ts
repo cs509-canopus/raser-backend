@@ -3,7 +3,7 @@ import { join } from "path";
 import { handler } from "../lambda/echo";
 
 const event = JSON.parse(
-  readFileSync(join(__dirname, "events", "echo", "echo.event.jsonc"), "utf-8"),
+  readFileSync(join(__dirname, "events", "Echo", "echo.event.jsonc"), "utf-8"),
 );
 
 test("function-name handler test", async () => {

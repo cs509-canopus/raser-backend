@@ -125,9 +125,8 @@ the database unless you are inside the VPC.
 
 #### Handler tests
 
-To test the `handler` function, create two files inside `test/events/function-name/`
+To test the `handler` function, create two files inside `test/events/FunctionName/`
 (replace `logic` with the actual name of the logic function):
-
 - `logic.event.json`
 - `logic.expected.json`
 

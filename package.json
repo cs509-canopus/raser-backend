@@ -5,6 +5,7 @@
     "build": "tsc",
     "watch": "tsc -w",
     "test": "jest",
+    "test:sam": "node scripts/test-sam.mjs",
     "cdk": "cdk",
     "format": "prettier . --write",
     "format:check": "prettier . --check"
