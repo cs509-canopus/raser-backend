@@ -17,9 +17,9 @@ lambda/category/
 ## Lambda function code
 
 The entry file for the lambda function **must** export a function called `handler`. When
-the lambda function is wired up to the Rest API Gateway as a Lambda Proxy Integration, this 
+the lambda function is wired up to the Rest API Gateway as a Lambda Proxy Integration, this
 handler function receives an object containing a bunch of information about the request. A
-full specification of the input object can be found 
+full specification of the input object can be found
 [here](https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html#api-gateway-simple-proxy-for-lambda-input-format).
 The handler function must return an object following a particular format which can be found
 [here](https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html#api-gateway-simple-proxy-for-lambda-output-format).
@@ -32,15 +32,17 @@ function. **Use the following code as a starter template:**
 // lambda/category/function-name.ts
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 
-export const handler = async (event: ApiGatewayProxyEvent): Promise<ApiGatewayProxyResult> => {
+export const handler = async (
+  event: APIGatewayProxyEvent,
+): Promise<APIGatewayProxyResult> => {
   // ...
-}
+};
 ```
 
 ### Code organization
 
 To make the lambda function easier to test, you should separate the event handling logic
-from the core business logic. The `handler` function should be responsible for extract URL 
+from the core business logic. The `handler` function should be responsible for extract URL
 and body parameters, validating the input, and bundling the output into the shape that the
 API gateway expects. In the middle, it should defer the core behavior to a dedicated
 function.
@@ -48,31 +50,36 @@ function.
 **The following code can be used as a template for this pattern**. The `handler` function
 should parse the JSON `event.body` object (passed as a string), validates that all
 required fields are present, then call the `logic` function to perform the core operation
-(*you should rename `logic` to be a more descriptive name*). Additionally, the `LogicArgs`
-and `LogicResult` describe the input and output parameters for the function (*these should
-also be renamed accordingly*).
+(_you should rename `logic` to be a more descriptive name_). Additionally, the `LogicArgs`
+and `LogicResult` describe the input and output parameters for the function (_these should
+also be renamed accordingly_).
 
 ```ts
 // lambda/category/function-name.ts
-export const handler = async (event: ApiGatewayProxyEvent): Promise<ApiGatewayProxyResult> => {
-  const args = JSON.parse(event.body ?? "{}")
+import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
+
+export const handler = async (
+  event: APIGatewayProxyEvent,
+): Promise<APIGatewayProxyResult> => {
+  const args = JSON.parse(event.body ?? "{}");
 
   // ... check that required arguments are present, return HTTP 400 if not
 
-  const result = logic(args)    // replace
+  const result = logic(args); // replace
+  // Check if logic function reported an error
   return {
-    body: JSON.stringify(result)
+    body: JSON.stringify(result),
     // ... (other required API gateway parameters)
-  }
-}
+  };
+};
 
 export interface LogicArgs {
-  // ... Arguments for the core logic. These most likely correspond to parameters in 
+  // ... Arguments for the core logic. These most likely correspond to parameters in
   //    the JSON request body
 }
 
 export interface LogicResult {
-  // ... Return object for the core logic. These most likely correspond to parameters in 
+  // ... Return object for the core logic. These most likely correspond to parameters in
   //    the JSON response body
 }
 
@@ -84,6 +91,7 @@ export function logic(args: LogicArgs): LogicResult {
 ### Writing unit cases
 
 Two categories of test cases:
+
 - Logic test: tests the core logic function (i.e., the `logic` function)
 - Handler test: tests the event `handler` function (parsing parameters, etc.)
 
@@ -97,14 +105,14 @@ with this.
 
 ```sh
 // test/function-name.test.ts
-import { logic } from "../lambda/category/function-name"
-import { describeCases } from "./helpers/describeCases"
+import { logic } from "../lambda/category/function-name";
+import { describeCases } from "./helpers/describeCases";
 
 // Test cases for the logic function. Change "logic" to the name of the function
 describeCases("logic", logic, [
   { input: { /* object passed to `logic` */ }, expected: { /* object returned by `logic` */ } },
   // ...
-])
+]);
 ```
 
 Be sure to write several test cases that cover all the edge cases. If your logic function
@@ -119,7 +127,8 @@ the database unless you are inside the VPC.
 
 To test the `handler` function, create two files inside `test/events/function-name/`
 (replace `logic` with the actual name of the logic function):
-- `logic.event.json` 
+
+- `logic.event.json`
 - `logic.expected.json`
 
 Copy the JSON payloads from the provided template files (`test/TEMPLATE.event.json` and
@@ -132,19 +141,22 @@ function. **Use the following code as a starter template**:
 ```ts
 import { readFileSync } from "fs";
 import { join } from "path";
-import { handler } from "../lambda/category/function-name";   // replace with actual function
+import { handler } from "../lambda/category/function-name"; // replace with actual function
 
 const event = JSON.parse(
   // Replace function-name and logic
-  readFileSync(join(__dirname, "events", "function-name", "logic.event.json"), "utf-8"),
-)
+  readFileSync(
+    join(__dirname, "events", "function-name", "logic.event.json"),
+    "utf-8",
+  ),
+);
 
 test("function-name handler test", async () => {
-  const result = await handler(addEvent)
+  const result = await handler(event);
 
-  expect(result.statusCode).toBe(200)
-  expect(JSON.parse(result.body)).toEqual({ /* response fields */ })
-})
+  expect(result.statusCode).toBe(200);
+  expect(JSON.parse(result.body)).toEqual({/* response fields */});
+});
 ```
 
 ### Running tests
@@ -155,7 +167,7 @@ Run lambda function logic unit tests:
 npm run test
 ```
 
-Run lambda function handler test with SAM CLI (requires 
+Run lambda function handler test with SAM CLI (requires
 [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html)
 to be installed).
 
@@ -170,6 +182,7 @@ npm run test:sam
 file containing the function is named `function-name.ts` (kebab-case), the construct
 should be named like `FunctionName` (PascalCase). In the `NodeJsFunction` props, you must
 pass the following parameters:
+
 - `entry`: path to the file containing the exported `handler` function
 - `runtime`: NodeJS version to use. Should be `NODEJS_22_X` in most cases
 
@@ -183,7 +196,13 @@ export class ApiStack extends cdk.Stack {
     // ...
 
     const functionName = new nodejs.NodejsFunction(this, "FunctionName", {
-      entry: path.join(__dirname, "..", "lambda", "category", "function-name.ts"),
+      entry: path.join(
+        __dirname,
+        "..",
+        "lambda",
+        "category",
+        "function-name.ts",
+      ),
       runtime: lambda.Runtime.NODEJS_22_X,
     });
 
@@ -200,7 +219,12 @@ in the `NodeJsFunction` object, as shown below:
 ```ts
 // Put these lines somewhere in `api-stack.ts` (they are likely already there)
 const vpc = ec2.Vpc.fromLookup(this, "Vpc", { vpcName: SHARED_VPC_NAME });
-const lambdaSg = ec2.SecurityGroup.fromLookupByName(this, "LambdaSg", SHARED_LAMBDA_SG_NAME, vpc);
+const lambdaSg = ec2.SecurityGroup.fromLookupByName(
+  this,
+  "LambdaSg",
+  SHARED_LAMBDA_SG_NAME,
+  vpc,
+);
 
 const functionName = new nodejs.NodejsFunction(this, "FunctionName", {
   // existing parameters ...
@@ -213,5 +237,3 @@ const functionName = new nodejs.NodejsFunction(this, "FunctionName", {
 ```
 
 Note that if the function is part of the VPC, then it loses all outside internet access.
-
-

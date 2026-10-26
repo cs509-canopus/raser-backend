@@ -1,0 +1,10 @@
+{
+  "statusCode": 200,
+  "headers": {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*"
+  },
+  "multiValueHeaders": null,
+  "body": "{\"text\": \"Hello, World!Hello, World!Hello, World!\"}",
+  "isBase64Encoded": false
+}

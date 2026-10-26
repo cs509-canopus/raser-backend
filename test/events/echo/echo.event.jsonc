@@ -1,0 +1,58 @@
+{
+  "body": "{\"text\": \"Hello, World!\"}",
+  "resource": "/echo/{quantity}",
+  "path": "/echo/3",
+  "httpMethod": "POST",
+  "isBase64Encoded": false,
+  "queryStringParameters": null,
+  "multiValueQueryStringParameters": null,
+  "pathParameters": {
+    "quantity": "3"
+  },
+  "stageVariables": null,
+  "headers": {
+    "Accept": "application/json",
+    "Content-Type": "application/json",
+    "Host": "abcdef1234.execute-api.us-east-1.amazonaws.com",
+    "User-Agent": "Custom User Agent String",
+    "X-Forwarded-For": "127.0.0.1",
+    "X-Forwarded-Port": "443",
+    "X-Forwarded-Proto": "https"
+  },
+  "multiValueHeaders": {
+    "Accept": ["application/json"],
+    "Content-Type": ["application/json"],
+    "Host": ["abcdef1234.execute-api.us-east-1.amazonaws.com"],
+    "User-Agent": ["Custom User Agent String"],
+    "X-Forwarded-For": ["127.0.0.1"],
+    "X-Forwarded-Port": ["443"],
+    "X-Forwarded-Proto": ["https"]
+  },
+  "requestContext": {
+    "accountId": "123456789012",
+    "resourceId": "abc123",
+    "stage": "api",
+    "requestId": "00000000-0000-0000-0000-000000000000",
+    "requestTime": "01/Jan/2026:00:00:00 +0000",
+    "requestTimeEpoch": 1767225600000,
+    "authorizer": null,
+    "identity": {
+      "cognitoIdentityPoolId": null,
+      "accountId": null,
+      "cognitoIdentityId": null,
+      "caller": null,
+      "accessKey": null,
+      "sourceIp": "127.0.0.1",
+      "cognitoAuthenticationType": null,
+      "cognitoAuthenticationProvider": null,
+      "userArn": null,
+      "userAgent": "Custom User Agent String",
+      "user": null
+    },
+    "path": "/api/echo/3",
+    "resourcePath": "/echo/3",
+    "httpMethod": "POST",
+    "apiId": "abcdef1234",
+    "protocol": "HTTP/1.1"
+  }
+}

@@ -1,23 +1,27 @@
 {
-  "body": "{\"<key>\": \"<value>\"}",             // Endpoint JSON body as a STRING (escape inner quotes). Use null for GET/DELETE
-  "resource": "/<path>/<to>/{<param>}",           // Replace with endpoint path (part after /api/). Leave parameters as {param}
-  "path": "/<path>/<to>/<param-value>",           // Same as "resource", with parameters filled in
-  "httpMethod": "<GET|POST|PUT|PATCH|DELETE>",    // HTTP Method
+  "body": "{\"<key>\": \"<value>\"}", // Endpoint JSON body as a STRING (escape inner quotes). Use null for GET/DELETE
+  "resource": "/<path>/<to>/{<param>}", // Replace with endpoint path (part after /api/). Leave parameters as {param}
+  "path": "/<path>/<to>/<param-value>", // Same as "resource", with parameters filled in
+  "httpMethod": "<GET|POST|PUT|PATCH|DELETE>", // HTTP Method
   "isBase64Encoded": false,
-  "queryStringParameters": {                      // Query string (?key=value). Use null if there are none
+  "queryStringParameters": {
+    // Query string (?key=value). Use null if there are none
     "<key>": "<value>"
     // Other query parameters ...
   },
-  "multiValueQueryStringParameters": {            // Same keys as "queryStringParameters", each value wrapped in an array. Use null if none
+  "multiValueQueryStringParameters": {
+    // Same keys as "queryStringParameters", each value wrapped in an array. Use null if none
     "<key>": ["<value>"]
     // Other query parameters ...
   },
-  "pathParameters": {                             // One entry per {param} in "resource". Use null if there are none
+  "pathParameters": {
+    // One entry per {param} in "resource". Use null if there are none
     "<param>": "<param-value>"
     // Other path parameters ...
   },
   "stageVariables": null,
-  "headers": {                                    // Add any custom headers your handler reads (keep in sync with "multiValueHeaders")
+  "headers": {
+    // Add any custom headers your handler reads (keep in sync with "multiValueHeaders")
     "Accept": "application/json",
     "Content-Type": "application/json",
     "Host": "abcdef1234.execute-api.us-east-1.amazonaws.com",
@@ -27,7 +31,8 @@
     "X-Forwarded-Proto": "https"
     // Other headers ...
   },
-  "multiValueHeaders": {                          // Same keys as "headers", each value wrapped in an array
+  "multiValueHeaders": {
+    // Same keys as "headers", each value wrapped in an array
     "Accept": ["application/json"],
     "Content-Type": ["application/json"],
     "Host": ["abcdef1234.execute-api.us-east-1.amazonaws.com"],
@@ -44,11 +49,12 @@
     "requestId": "00000000-0000-0000-0000-000000000000",
     "requestTime": "01/Jan/2026:00:00:00 +0000",
     "requestTimeEpoch": 1767225600000,
-    "authorizer": {                               // Cognito User Pool authorizer output. Use null for unauthenticated endpoints
+    "authorizer": {
+      // Cognito User Pool authorizer output. Use null for unauthenticated endpoints
       "claims": {
-        "sub": "<cognito-user-id>",               // Replace with a Cognito user ID (UUID)
-        "email": "<user@example.com>",            // Replace with the user's email
-        "cognito:username": "<username>"          // Replace with the user's Cognito username
+        "sub": "<cognito-user-id>", // Replace with a Cognito user ID (UUID)
+        "email": "<user@example.com>", // Replace with the user's email
+        "cognito:username": "<username>" // Replace with the user's Cognito username
         // Other claims your handler reads ...
       }
     },
@@ -65,9 +71,9 @@
       "userAgent": "Custom User Agent String",
       "user": null
     },
-    "path": "/api/<path>/<to>/<param-value>",     // "/api" + top-level "path"
-    "resourcePath": "/<path>/<to>/{<param>}",     // Same as top-level "resource"
-    "httpMethod": "<GET|POST|PUT|PATCH|DELETE>",  // Same as top-level "httpMethod"
+    "path": "/api/<path>/<to>/<param-value>", // "/api" + top-level "path"
+    "resourcePath": "/<path>/<to>/{<param>}", // Same as top-level "resource"
+    "httpMethod": "<GET|POST|PUT|PATCH|DELETE>", // Same as top-level "httpMethod"
     "apiId": "abcdef1234",
     "protocol": "HTTP/1.1"
   }
