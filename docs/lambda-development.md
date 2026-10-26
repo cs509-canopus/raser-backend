@@ -85,7 +85,9 @@ export function logic(args: LogicArgs): LogicResult {
 
 Two categories of test cases:
 - Logic test: tests the core logic function (i.e., the `logic` function)
-- Request/response test: tests the event `handler` function (parsing parameters, etc.)
+- Handler test: tests the event `handler` function (parsing parameters, etc.)
+
+#### Logic tests
 
 Test cases for the **core logic function** should be put in a file
 `test/function-name.test.ts`, where `function-name` is the same name as the lambda
@@ -113,14 +115,37 @@ the database unless you are inside the VPC.
 > For now, do not write tests for database functions. We can try to figure out a way to
 > test these functions later.
 
-To test the `handler` function, create two files inside `test/function-name/` (replace
-`logic` with the actual name of the logic function):
+#### Handler tests
+
+To test the `handler` function, create two files inside `test/events/function-name/`
+(replace `logic` with the actual name of the logic function):
 - `logic.event.json` 
 - `logic.expected.json`
 
-Copy the JSON payloads from the provided template files (`tests/TEMPLATE.event.json` and
-`tests/TEMPLATE.expected.json`) and replace anything that has comments. One test case with
+Copy the JSON payloads from the provided template files (`test/TEMPLATE.event.json` and
+`test/TEMPLATE.expected.json`) and replace anything that has comments. One test case with
 all possible parameters is sufficient.
+
+After that, create a file `test/function-name.handler.test` that calls your `handler`
+function. **Use the following code as a starter template**:
+
+```ts
+import { readFileSync } from "fs";
+import { join } from "path";
+import { handler } from "../lambda/category/function-name";   // replace with actual function
+
+const event = JSON.parse(
+  // Replace function-name and logic
+  readFileSync(join(__dirname, "events", "function-name", "logic.event.json"), "utf-8"),
+)
+
+test("function-name handler test", async () => {
+  const result = await handler(addEvent)
+
+  expect(result.statusCode).toBe(200)
+  expect(JSON.parse(result.body)).toEqual({ /* response fields */ })
+})
+```
 
 ### Running tests
 
@@ -130,7 +155,7 @@ Run lambda function logic unit tests:
 npm run test
 ```
 
-Run lambda function request/response test with SAM CLI (requires 
+Run lambda function handler test with SAM CLI (requires 
 [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html)
 to be installed).
 
