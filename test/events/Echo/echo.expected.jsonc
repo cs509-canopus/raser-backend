@@ -1,0 +1,9 @@
+{
+  "statusCode": 200,
+  "headers": {
+    "Access-Control-Allow-Origin": "*"
+  },
+  "multiValueHeaders": {},
+  "body": "{\"text\":\"Hello, World!Hello, World!Hello, World!\"}",
+  "isBase64Encoded": false
+}

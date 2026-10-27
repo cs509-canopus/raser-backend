@@ -1,0 +1,17 @@
+{
+  "statusCode": 200, // Replace with HTTP status code (a number, not a string)
+  "headers": {
+    // Single-value response headers
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "<frontend-origin>", // Replace with the stage's CloudFront URL (e.g. https://<id>.cloudfront.net)
+    "Access-Control-Allow-Credentials": "true" // Only if the frontend sends cookies/Authorization with credentials. Otherwise remove
+    // Other headers ...
+  },
+  "multiValueHeaders": {
+    // Only for headers that repeat (e.g. Set-Cookie). Use null if none
+    "<Header-Name>": ["<value-1>", "<value-2>"]
+    // Other repeated headers ...
+  },
+  "body": "{\"<key>\": \"<value>\"}", // Response JSON as a STRING (escape inner quotes). Use "" for 204 No Content
+  "isBase64Encoded": false
+}

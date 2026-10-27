@@ -10,7 +10,7 @@ const app = new cdk.App();
 const databaseStack = new DatabaseStack(app, "DatabaseStack", {});
 const networkStack = new NetworkStack(app, "NetworkStack", {});
 
-// Top-level shared environments 
+// Top-level shared environments
 const productionStage = new RaserStage(app, "production", {});
 const stagingStage = new RaserStage(app, "staging", {});
 
