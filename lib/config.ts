@@ -10,7 +10,6 @@ export const DB_PORT = 5432;
 /** Port for SSH connections */
 export const SSH_PORT = 22;
 
-
 /** Security group name for Lambdas that need to reach the database. */
 export const SHARED_LAMBDA_SG_NAME = "raser-lambda-db-clients";
 

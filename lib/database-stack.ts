@@ -37,8 +37,16 @@ export class DatabaseStack extends cdk.Stack {
       description: "Attached to the shared Postgres instance",
       allowAllOutbound: false,
     });
-    dbSg.addIngressRule(lambdaSg, ec2.Port.tcp(DB_PORT), "Postgres from Lambdas");
-    dbSg.addIngressRule(bastionSg, ec2.Port.tcp(DB_PORT), "Postgres from the dev bastion");
+    dbSg.addIngressRule(
+      lambdaSg,
+      ec2.Port.tcp(DB_PORT),
+      "Postgres from Lambdas",
+    );
+    dbSg.addIngressRule(
+      bastionSg,
+      ec2.Port.tcp(DB_PORT),
+      "Postgres from the dev bastion",
+    );
 
     const credentials = rds.Credentials.fromGeneratedSecret("raser_admin");
 
