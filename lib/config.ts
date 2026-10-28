@@ -15,3 +15,7 @@ export const SHARED_LAMBDA_SG_NAME = "raser-lambda-db-clients";
 
 /** Security group name for the developer bastion that tunnels to the database. */
 export const SHARED_BASTION_SG_NAME = "raser-db-bastion";
+
+export const SHARED_DB_SECRET_NAME = "raser-shared-db-secret";
+export const SHARED_DB_ENDPOINT_SSM_PARAM = "/raser/shared-db/endpoint";
+export const SHARED_DB_NAME = "raser";
