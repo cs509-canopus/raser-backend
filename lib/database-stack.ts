@@ -69,7 +69,7 @@ export class DatabaseStack extends cdk.Stack {
       storageEncrypted: true,
       publiclyAccessible: false,
       port: DB_PORT,
-      backupRetention: cdk.Duration.days(7),
+      backupRetention: cdk.Duration.days(1),
       deletionProtection: false,
       removalPolicy: cdk.RemovalPolicy.SNAPSHOT,
     });
