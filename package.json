@@ -13,10 +13,12 @@
   "devDependencies": {
     "@swc/core": "^1.15.0",
     "@swc/jest": "^0.2.39",
-    "@types/aws-lambda": "^8.10.164",
+    "@types/aws-lambda": "^8.10.159",
     "@types/jest": "^30",
     "@types/node": "^24.10.1",
+    "@types/pg": "^8.11.10",
     "aws-cdk": "2.1142.0",
+    "esbuild": "^0.25.0",
     "jest": "^30",
     "prettier": "3.9.10",
     "tsx": "^4.23.0",
@@ -24,6 +26,7 @@
   },
   "dependencies": {
     "aws-cdk-lib": "^2.269.0",
-    "constructs": "^10.5.0"
+    "constructs": "^10.5.0",
+    "pg": "^8.13.1"
   }
 }

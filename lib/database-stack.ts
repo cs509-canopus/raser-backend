@@ -1,11 +1,14 @@
 import * as cdk from "aws-cdk-lib";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as rds from "aws-cdk-lib/aws-rds";
+import * as ssm from "aws-cdk-lib/aws-ssm";
 import { Construct } from "constructs";
 import {
   SHARED_VPC_NAME,
   SHARED_LAMBDA_SG_NAME,
   SHARED_BASTION_SG_NAME,
+  SHARED_DB_SECRET_NAME,
+  SHARED_DB_ENDPOINT_SSM_PARAM,
   DB_PORT,
 } from "./config";
 
@@ -40,7 +43,9 @@ export class DatabaseStack extends cdk.Stack {
     dbSg.addIngressRule(lambdaSg, ec2.Port.tcp(DB_PORT), "Postgres from Lambdas");
     dbSg.addIngressRule(bastionSg, ec2.Port.tcp(DB_PORT), "Postgres from the dev bastion");
 
-    const credentials = rds.Credentials.fromGeneratedSecret("raser_admin");
+    const credentials = rds.Credentials.fromGeneratedSecret("raser_admin", {
+      secretName: SHARED_DB_SECRET_NAME,
+    });
 
     this.instance = new rds.DatabaseInstance(this, "Postgres", {
       instanceIdentifier: "raser-shared-db",
@@ -64,6 +69,11 @@ export class DatabaseStack extends cdk.Stack {
       backupRetention: cdk.Duration.days(7),
       deletionProtection: false,
       removalPolicy: cdk.RemovalPolicy.SNAPSHOT,
+    });
+
+    new ssm.StringParameter(this, "DbEndpointParam", {
+      parameterName: SHARED_DB_ENDPOINT_SSM_PARAM,
+      stringValue: this.instance.dbInstanceEndpointAddress,
     });
 
     new cdk.CfnOutput(this, "DbEndpoint", {
