@@ -5,6 +5,7 @@
     "build": "tsc",
     "watch": "tsc -w",
     "test": "jest",
+    "test:sam": "node scripts/test-sam.mjs",
     "cdk": "cdk",
     "format": "prettier . --write",
     "format:check": "prettier . --check"
@@ -12,6 +13,7 @@
   "devDependencies": {
     "@swc/core": "^1.15.0",
     "@swc/jest": "^0.2.39",
+    "@types/aws-lambda": "^8.10.164",
     "@types/jest": "^30",
     "@types/node": "^24.10.1",
     "aws-cdk": "2.1142.0",

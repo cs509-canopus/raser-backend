@@ -6,8 +6,13 @@ import { NetworkStack } from "../lib/network-stack";
 
 const app = new cdk.App();
 
+const env = {
+  account: process.env.CDK_DEFAULT_ACCOUNT,
+  region: process.env.CDK_DEFAULT_REGION,
+};
+
 // Stacks shared across all stages
-const databaseStack = new DatabaseStack(app, "DatabaseStack", {});
+const databaseStack = new DatabaseStack(app, "DatabaseStack", { env });
 const networkStack = new NetworkStack(app, "NetworkStack", {});
 
 // Top-level shared environments
