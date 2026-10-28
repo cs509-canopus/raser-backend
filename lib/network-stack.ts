@@ -74,14 +74,14 @@ export class NetworkStack extends cdk.Stack {
       allowAllOutbound: false,
     });
 
-    // Allow connections leaving EicSg going to BastionSg on SSH port (22) 
+    // Allow connections leaving EicSg going to BastionSg on SSH port (22)
     this.eicSecurityGroup.addEgressRule(
       this.bastionSecurityGroup,
       ec2.Port.tcp(SSH_PORT),
       "SSH to bastion only",
     );
 
-    // Allow connections arriving to BastionSg from EicSg on SSH port (22) 
+    // Allow connections arriving to BastionSg from EicSg on SSH port (22)
     this.bastionSecurityGroup.addIngressRule(
       this.eicSecurityGroup,
       ec2.Port.tcp(SSH_PORT),
