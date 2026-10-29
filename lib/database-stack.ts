@@ -72,6 +72,7 @@ export class DatabaseStack extends cdk.Stack {
       backupRetention: cdk.Duration.days(1),
       deletionProtection: false,
       removalPolicy: cdk.RemovalPolicy.SNAPSHOT,
+      iamAuthentication: true, // let Lambdas log in with short-lived IAM tokens
     });
 
     new cdk.CfnOutput(this, "DbEndpoint", {
