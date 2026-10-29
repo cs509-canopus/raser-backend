@@ -87,6 +87,25 @@ export class ApiStack extends cdk.Stack {
       new apigateway.LambdaIntegration(listJournalsFunction),
     );
 
+    const getJournalFunction = this.createLambda({
+      id: "GetJournal",
+      entry: path.join(
+        __dirname,
+        "..",
+        "lambda",
+        "journals",
+        "get-journal.ts",
+      ),
+      dbAccess: true,
+    });
+
+    // /journals/{journalID}
+    const journalsJournalIDResource = journalsResource.addResource("{journalID}");
+    journalsJournalIDResource.addMethod(
+      "GET",
+      new apigateway.LambdaIntegration(getJournalFunction)
+    );
+
     // Get the name of this stage and print a creation message. This is printed whenever
     // this stage is deployed
     new cdk.CfnOutput(this, "CreationMessage", {
