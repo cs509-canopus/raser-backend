@@ -81,6 +81,7 @@ export async function getIssue(
 ): Promise<GetIssueResult | GetIssueError> {
   try {
     // Select entry from the issue table
+    // TODO: add check that journal.owner_id matches the logged in user. If not, return 403 Forbidden
     const issueResult = await query<IssuesSchema>(
       `SELECT id, journal_id, volume_number, issue_number, created_at
        FROM issues

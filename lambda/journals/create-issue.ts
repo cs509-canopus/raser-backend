@@ -106,6 +106,7 @@ export async function createIssue(
 ): Promise<CreateIssueResult | CreateIssueError> {
   try {
     // Create issue entry and return the created row
+    // TODO: add check that journal.owner_id matches the logged in user. If not, return 403 Forbidden
     const createIssueResult = await query<IssuesSchema>(
       `INSERT INTO issues (journal_id, volume_number, issue_number)
        VALUES ($1::uuid, $2::integer, $3::integer)
