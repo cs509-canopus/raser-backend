@@ -236,3 +236,58 @@ const functionName = new nodejs.NodejsFunction(this, "FunctionName", {
 ```
 
 Note that if the function is part of the VPC, then it loses all outside internet access.
+
+### Database environment variables
+
+Every stage has its own database on the shared RDS instance, named after the stage (e.g.
+the `asuyer` stage uses the `asuyer` database). A Lambda function finds its database
+through four environment variables, which are set in its `NodeJsFunction` props:
+
+| Variable  | Value                                                         |
+| --------- | ------------------------------------------------------------- |
+| `DB_HOST` | Endpoint address of the shared RDS instance (`raser-shared-db`) |
+| `DB_PORT` | Port of the shared RDS instance (`5432`)                      |
+| `DB_NAME` | The stage name, which is also the name of the stage's database |
+| `DB_USER` | Always `raser_admin`                                          |
+
+`ApiStack` does not import `DatabaseStack` directly. Instead, it looks up the shared
+instance by its identifier, the same way it looks up the VPC by name. Look the instance
+up once in `ApiStack`, then pass the same `dbEnvironment` object to every function that
+talks to the database:
+
+```ts
+import * as rds from "aws-cdk-lib/aws-rds";
+
+// Put these lines somewhere in `api-stack.ts` (they are likely already there)
+const stageName = cdk.Stage.of(this)?.stageName ?? "default";
+const db = rds.DatabaseInstance.fromLookup(this, "Database", {
+  instanceIdentifier: "raser-shared-db",
+});
+const dbEnvironment = {
+  DB_HOST: db.dbInstanceEndpointAddress,
+  DB_PORT: db.dbInstanceEndpointPort,
+  DB_NAME: stageName,
+  DB_USER: "raser_admin",
+};
+
+const functionName = new nodejs.NodejsFunction(this, "FunctionName", {
+  // existing parameters (including the VPC ones above) ...
+
+  // Add this new one:
+  environment: { ...dbEnvironment },
+});
+```
+
+Never hard-code a database name in a function. Taking `DB_NAME` from the stage name is
+what keeps each developer's stage (and `staging`/`production`) on its own data.
+
+Inside the function, read the values from `process.env`:
+
+```ts
+// lambda/category/function-name.ts
+const { DB_HOST, DB_PORT, DB_NAME, DB_USER } = process.env;
+```
+
+To look at the same database from your laptop, set `RASER_STAGE` to your stage name and
+run `scripts/db-connect.sh`. It connects to the database named `$RASER_STAGE`.
+
