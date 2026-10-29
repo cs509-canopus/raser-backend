@@ -130,9 +130,16 @@ export async function createIssue(
     };
   } catch (err) {
     if (err instanceof DatabaseError && err.code === "23505") {
+      // unique_violation
       console.error("Duplicate key error", err);
       return {
         error: `Issue volume ${args.volumeNumber} issue ${args.issueNumber} already exists under journal ${args.journalID}`,
+      };
+    } else if (err instanceof DatabaseError && err.code === "23503") {
+      // foreign_key_violation
+      console.error("Foreign key violation error", err);
+      return {
+        error: `Journal with ID ${args.journalID} does not exist`,
       };
     } else {
       console.error("createIssue failed", err);
