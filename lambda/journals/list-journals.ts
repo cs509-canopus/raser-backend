@@ -63,6 +63,7 @@ export async function listJournals(
 ): Promise<ListJournalsResult> {
   const q = args.query?.trim();
   try {
+    // TODO: add WHERE owner_id = {id of the logged-in user}
     const result = await query<JournalInfo>(
       `SELECT id, name, description FROM journals
        WHERE $1::text IS NULL

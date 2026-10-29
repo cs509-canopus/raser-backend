@@ -84,6 +84,7 @@ export async function getJournal(
 ): Promise<GetJournalResult | GetJournalError> {
   try {
     // Select entry from the journal table
+    // TODO: add check that owner_id matches the logged in user. If not, return 403 Forbidden
     const journalResult = await query<JournalsSchema>(
       `SELECT id, owner_id, name, description, website_url, cover_image, created_at
        FROM journals
