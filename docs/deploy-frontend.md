@@ -30,7 +30,17 @@ DistributionId = <distribution-id>
 
 **Navigate to the frontend repo, then follow these steps**.
 
-First, build the site:
+Before starting, make sure to set the `NEXT_PUBLIC_API_URL` environment variable to your
+API Gateway URL. The easiest way to do this is to create a `.env.local` file:
+
+```
+NEXT_PUBLIC_API_URL="https://<some-id>.execute-api.us-east-1.amazonaws.com/api/"
+```
+
+**Use the URL corresponding to your stage.** This is the URL that the frontend will send
+API requests to using the axios `backend` instance (see `src/axios-client.ts`).
+
+Next, build the site:
 
 ```sh
 npm run build
