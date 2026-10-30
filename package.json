@@ -16,6 +16,7 @@
     "@types/aws-lambda": "^8.10.164",
     "@types/jest": "^30",
     "@types/node": "^24.10.1",
+    "@types/pg": "^8.23.1",
     "aws-cdk": "2.1142.0",
     "jest": "^30",
     "prettier": "3.9.10",
@@ -23,7 +24,9 @@
     "typescript": "~7.0.2"
   },
   "dependencies": {
+    "@aws-sdk/rds-signer": "^3.1159.0",
     "aws-cdk-lib": "^2.269.0",
-    "constructs": "^10.5.0"
+    "constructs": "^10.5.0",
+    "pg": "^8.23.1"
   }
 }

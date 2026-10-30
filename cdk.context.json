@@ -1,0 +1,47 @@
+{
+  "vpc-provider:account=951603962422:filter.tag:Name=raser-shared-vpc:region=us-east-1:returnAsymmetricSubnets=true": {
+    "vpcId": "vpc-0e0fe4b9103b99d23",
+    "vpcCidrBlock": "10.0.0.0/16",
+    "ownerAccountId": "951603962422",
+    "availabilityZones": [],
+    "subnetGroups": [
+      {
+        "name": "isolated",
+        "type": "Isolated",
+        "subnets": [
+          {
+            "subnetId": "subnet-0b63add2301126b49",
+            "cidr": "10.0.0.0/24",
+            "availabilityZone": "us-east-1a",
+            "routeTableId": "rtb-0ebdffdebe51dacd3"
+          },
+          {
+            "subnetId": "subnet-0f129859694914267",
+            "cidr": "10.0.1.0/24",
+            "availabilityZone": "us-east-1b",
+            "routeTableId": "rtb-0786f67cebc5990db"
+          }
+        ]
+      }
+    ]
+  },
+  "security-group:account=951603962422:region=us-east-1:securityGroupName=raser-lambda-db-clients:vpcId=vpc-0e0fe4b9103b99d23": {
+    "securityGroupId": "sg-041a06ec4f60e978a",
+    "allowAllOutbound": false
+  },
+  "security-group:account=951603962422:region=us-east-1:securityGroupName=raser-db-bastion:vpcId=vpc-0e0fe4b9103b99d23": {
+    "securityGroupId": "sg-00069d90f0e956b40",
+    "allowAllOutbound": false
+  },
+  "cc-api-provider:account=951603962422:exactIdentifier=raser-shared-db:propertiesToReturn.0=DBInstanceArn:propertiesToReturn.1=Endpoint.Address:propertiesToReturn.2=Endpoint.Port:propertiesToReturn.3=DbiResourceId:propertiesToReturn.4=DBSecurityGroups:propertiesToReturn.5=VPCSecurityGroups:region=us-east-1:typeName=AWS$:$:RDS$:$:DBInstance": [
+    {
+      "DBInstanceArn": "arn:aws:rds:us-east-1:951603962422:db:raser-shared-db",
+      "Endpoint.Address": "raser-shared-db.cy9aisuiqffw.us-east-1.rds.amazonaws.com",
+      "Endpoint.Port": "5432",
+      "DbiResourceId": "db-4DH4QAHRAVNGFC4RENWD4SFK3U",
+      "DBSecurityGroups": [],
+      "VPCSecurityGroups": ["sg-0a377991197c173aa"],
+      "Identifier": "raser-shared-db"
+    }
+  ]
+}
