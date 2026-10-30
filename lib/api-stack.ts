@@ -1,7 +1,7 @@
 import * as cdk from "aws-cdk-lib";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
-import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
+import * as lambda from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { DatabaseInstance, IDatabaseInstance } from "aws-cdk-lib/aws-rds";
 
@@ -142,6 +142,55 @@ export class ApiStack extends cdk.Stack {
     new cdk.CfnOutput(this, "CreationMessage", {
       value: `Created ApiStack for stage '${stageName}'`,
     });
+
+    // paper endpoints, issues #21-23
+    const addPaperFunction = this.createLambda({
+      id: "AddPaper",
+      entry: path.join(__dirname, "..", "lambda", "papers", "add-paper.ts"),
+      dbAccess: true,
+    });
+
+    // /issues/{issueID}/papers
+    const issuesIssueIDPapersResource =
+      issuesIssueIDResource.addResource("papers");
+    issuesIssueIDPapersResource.addMethod(
+      "POST",
+      new apigateway.LambdaIntegration(addPaperFunction),
+    );
+
+    const viewPaperFunction = this.createLambda({
+      id: "ViewPaper",
+      entry: path.join(__dirname, "..", "lambda", "papers", "view-paper.ts"),
+      dbAccess: true,
+    });
+
+    // /papers/{paperID}
+    const papersResource = api.root.addResource("papers");
+    const papersPaperIDResource = papersResource.addResource("{paperID}");
+    papersPaperIDResource.addMethod(
+      "GET",
+      new apigateway.LambdaIntegration(viewPaperFunction),
+    );
+
+    const withdrawPaperFunction = this.createLambda({
+      id: "WithdrawPaper",
+      entry: path.join(
+        __dirname,
+        "..",
+        "lambda",
+        "papers",
+        "withdraw-paper.ts",
+      ),
+      dbAccess: true,
+    });
+
+    // /papers/{paperID}/withdraw
+    const papersPaperIDWithdrawResource =
+      papersPaperIDResource.addResource("withdraw");
+    papersPaperIDWithdrawResource.addMethod(
+      "POST",
+      new apigateway.LambdaIntegration(withdrawPaperFunction),
+    );
   }
 
   private createLambda({
