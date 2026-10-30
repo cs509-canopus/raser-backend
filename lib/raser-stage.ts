@@ -1,6 +1,7 @@
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 import { ApiStack } from "./api-stack";
+import { SiteStack } from "./site-stack";
 
 const env = {
   account: process.env.CDK_DEFAULT_ACCOUNT,
@@ -13,5 +14,6 @@ export class RaserStage extends cdk.Stage {
 
     // Add stacks here that should be cloned for every stage
     new ApiStack(this, "ApiStack", { env });
+    new SiteStack(this, "SiteStack", {});
   }
 }
