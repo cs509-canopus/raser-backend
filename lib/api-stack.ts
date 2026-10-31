@@ -157,6 +157,17 @@ export class ApiStack extends cdk.Stack {
       new apigateway.LambdaIntegration(getIssueFunction),
     );
 
+    const deleteIssueFunction = this.createLambda({
+      id: "DeleteIssue",
+      entry: path.join(__dirname, "..", "lambda", "issues", "delete-issue.ts"),
+      dbAccess: true,
+    });
+
+    issuesIssueIDResource.addMethod(
+      "DELETE",
+      new apigateway.LambdaIntegration(deleteIssueFunction),
+    );
+
     // Get the name of this stage and print a creation message. This is printed whenever
     // this stage is deployed
     new cdk.CfnOutput(this, "CreationMessage", {

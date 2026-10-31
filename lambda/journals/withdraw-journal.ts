@@ -30,7 +30,7 @@ export const handler = async (
     };
   }
 
-  // Withdraw the selected journaj
+  // Withdraw the selected journal
   const result = await withdrawJournal({ journalID: pathParams.journalID! });
 
   // Construct response object
