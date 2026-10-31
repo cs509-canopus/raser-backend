@@ -121,6 +121,26 @@ export class ApiStack extends cdk.Stack {
       new apigateway.LambdaIntegration(createIssueFunction),
     );
 
+    const withdrawJournalFunction = this.createLambda({
+      id: "WithdrawJournal",
+      entry: path.join(
+        __dirname,
+        "..",
+        "lambda",
+        "journals",
+        "withdraw-journal.ts",
+      ),
+      dbAccess: true,
+    });
+
+    // /journals/{journalID}/withdraw
+    const journalsJournalIDWithdrawResource =
+      journalsJournalIDResource.addResource("withdraw");
+    journalsJournalIDWithdrawResource.addMethod(
+      "POST",
+      new apigateway.LambdaIntegration(withdrawJournalFunction),
+    );
+
     const issuesResource = api.root.addResource("issues");
     // TODO: insert POST /issues (CreateIssue) here
 
