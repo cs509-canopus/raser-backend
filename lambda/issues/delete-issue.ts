@@ -63,7 +63,9 @@ interface IssuesSchema {
   created_at: Date;
 }
 
-export async function deleteIssue(args: DeleteIssueArgs): Promise<DeleteIssueResult | DeleteIssueError> {
+export async function deleteIssue(
+  args: DeleteIssueArgs,
+): Promise<DeleteIssueResult | DeleteIssueError> {
   try {
     // Check if the issue exists
     const findIssueResult = await query(
@@ -98,11 +100,10 @@ export async function deleteIssue(args: DeleteIssueArgs): Promise<DeleteIssueRes
 
     // Construct response object
     return {
-      issueID: deleteResult.rows[0].id
-    }
+      issueID: deleteResult.rows[0].id,
+    };
   } catch (err) {
     console.error("deleteIssue failed", err);
     return { error: `Failed to delete issue: ${err}` };
   }
-
 }

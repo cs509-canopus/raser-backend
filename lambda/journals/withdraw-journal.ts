@@ -65,7 +65,9 @@ interface JournalsSchema {
   created_at: Date;
 }
 
-export async function withdrawJournal(args: WithdrawJournalArgs): Promise<WithdrawJournalResult | WithdrawJournalError> {
+export async function withdrawJournal(
+  args: WithdrawJournalArgs,
+): Promise<WithdrawJournalResult | WithdrawJournalError> {
   try {
     // Check if the journal exists
     const findJournalResult = await query(
@@ -100,11 +102,10 @@ export async function withdrawJournal(args: WithdrawJournalArgs): Promise<Withdr
 
     // Construct response object
     return {
-      journalID: deleteResult.rows[0].id
-    }
+      journalID: deleteResult.rows[0].id,
+    };
   } catch (err) {
     console.error("withdrawJournal failed", err);
     return { error: `Failed to withdraw journal: ${err}` };
   }
 }
-
