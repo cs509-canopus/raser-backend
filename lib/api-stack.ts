@@ -121,6 +121,26 @@ export class ApiStack extends cdk.Stack {
       new apigateway.LambdaIntegration(createIssueFunction),
     );
 
+    const withdrawJournalFunction = this.createLambda({
+      id: "WithdrawJournal",
+      entry: path.join(
+        __dirname,
+        "..",
+        "lambda",
+        "journals",
+        "withdraw-journal.ts",
+      ),
+      dbAccess: true,
+    });
+
+    // /journals/{journalID}/withdraw
+    const journalsJournalIDWithdrawResource =
+      journalsJournalIDResource.addResource("withdraw");
+    journalsJournalIDWithdrawResource.addMethod(
+      "POST",
+      new apigateway.LambdaIntegration(withdrawJournalFunction),
+    );
+
     const issuesResource = api.root.addResource("issues");
     // TODO: insert POST /issues (CreateIssue) here
 
@@ -135,6 +155,17 @@ export class ApiStack extends cdk.Stack {
     issuesIssueIDResource.addMethod(
       "GET",
       new apigateway.LambdaIntegration(getIssueFunction),
+    );
+
+    const deleteIssueFunction = this.createLambda({
+      id: "DeleteIssue",
+      entry: path.join(__dirname, "..", "lambda", "issues", "delete-issue.ts"),
+      dbAccess: true,
+    });
+
+    issuesIssueIDResource.addMethod(
+      "DELETE",
+      new apigateway.LambdaIntegration(deleteIssueFunction),
     );
 
     // Get the name of this stage and print a creation message. This is printed whenever
