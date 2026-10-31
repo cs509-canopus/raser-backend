@@ -61,12 +61,20 @@ export const handler = async (
     };
 };
 
-export interface CreateJournalResult {
-    ownerID: string;
+export interface CreateJournalArgs {
     name: string;
     description?: string;
     websiteUrl?: string;
     coverImageUrl?: string;
+}
+
+
+export interface CreateJournalResult {
+    ownerID: string;
+    name: string;
+    description: string | null;
+    websiteUrl: string | null;
+    coverImageUrl: string | null;
 }
 
 export interface CreateJournalError {
