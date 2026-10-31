@@ -67,6 +67,19 @@ interface JournalsSchema {
 
 export async function withdrawJournal(args: WithdrawJournalArgs): Promise<WithdrawJournalResult | WithdrawJournalError> {
   try {
+    // Check if the journal exists
+    const findJournalResult = await query(
+      `SELECT 1 FROM journals WHERE id = $1::uuid`,
+      [args.journalID],
+    );
+
+    // Return error if the chosen journal does not exist
+    if (findJournalResult.rowCount === 0) {
+      return {
+        error: `No journal with ID ${args.journalID}`,
+      };
+    }
+
     // Delete the journal as long as it doesn't have any issues
     const deleteResult = await query<JournalsSchema>(
       `DELETE FROM journals 
@@ -76,12 +89,12 @@ export async function withdrawJournal(args: WithdrawJournalArgs): Promise<Withdr
          WHERE issues.journal_id = $1::uuid)
        RETURNING *`,
       [args.journalID],
-    )
+    );
 
-    // Return error if the chosen journal does not exist or the chosen journal has issues
+    // Return error if the chosen journal has issues
     if (deleteResult.rowCount === 0) {
       return {
-        error: `Could not delete journal with ID ${args.journalID}`,
+        error: `Cannot delete journal with ID ${args.journalID} because it has issues`,
       };
     }
 
