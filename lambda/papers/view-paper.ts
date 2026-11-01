@@ -24,20 +24,25 @@ export async function viewPaperCore(
     return errorResult(400, "Invalid paperID");
   }
 
-  const info = await getPaperViewInfo(query, paperId);
-  if (!info) {
-    return errorResult(400, "Invalid paperID");
-  }
+  try {
+    const info = await getPaperViewInfo(query, paperId);
+    if (!info) {
+      return errorResult(400, "Invalid paperID");
+    }
 
-  return {
-    statusCode: 200,
-    body: {
-      journalID: info.journalId,
-      issueID: info.issueId,
-      paperID: paperId,
-      reviews: info.reviewIds,
-    },
-  };
+    return {
+      statusCode: 200,
+      body: {
+        journalID: info.journalId,
+        issueID: info.issueId,
+        paperID: paperId,
+        reviews: info.reviewIds,
+      },
+    };
+  } catch (err) {
+    console.error("viewPaperCore failed", err);
+    return errorResult(500, `Failed to view paper: ${err}`);
+  }
 }
 
 export const handler = async (
