@@ -99,7 +99,8 @@ export async function getIssue(
     // Select all linked papers
     const papersResult = await query(
       `SELECT id FROM papers
-       WHERE issue_id = $1::uuid`,
+       WHERE issue_id = $1::uuid
+       AND is_closed = false`,
       [args.issueID],
     );
 
