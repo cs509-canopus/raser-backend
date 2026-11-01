@@ -9,6 +9,14 @@ import {
 } from "./shared/types";
 import { parseJsonBody, validateAddPaperBody } from "./shared/validation";
 
+const resultParams: Partial<APIGatewayProxyResult> = {
+  isBase64Encoded: false,
+  headers: {
+    "Access-Control-Allow-Origin": "*",
+  },
+  multiValueHeaders: {},
+};
+
 export async function addPaperCore(
   issueId: string | undefined,
   rawBody: string | null,
@@ -57,5 +65,9 @@ export const handler = async (
     event.body,
     realQuery,
   );
-  return { statusCode: result.statusCode, body: JSON.stringify(result.body) };
+  return {
+    statusCode: result.statusCode,
+    body: JSON.stringify(result.body),
+    ...resultParams,
+  };
 };
