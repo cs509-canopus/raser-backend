@@ -9,6 +9,14 @@ import {
 } from "./shared/types";
 import { parseJsonBody, validateAddPaperBody } from "./shared/validation";
 
+const resultParams: Partial<APIGatewayProxyResult> = {
+  isBase64Encoded: false,
+  headers: {
+    "Access-Control-Allow-Origin": "*",
+  },
+  multiValueHeaders: {},
+};
+
 export async function addPaperCore(
   issueId: string | undefined,
   rawBody: string | null,
@@ -29,24 +37,29 @@ export async function addPaperCore(
   }
 
   // TODO: no auth yet, should be restricted to the issue's JournalDesigner
-  const journalId = await journalIdForIssue(query, issueId);
-  if (!journalId) {
-    return errorResult(404, `Issue ${issueId} not found`);
-  }
+  try {
+    const journalId = await journalIdForIssue(query, issueId);
+    if (!journalId) {
+      return errorResult(404, `Issue ${issueId} not found`);
+    }
 
-  const row = await insertPaper(query, issueId, validated.value);
-  return {
-    statusCode: 201,
-    body: {
-      journalID: journalId,
-      issueID: row.issue_id,
-      paperID: row.id,
-      title: row.title,
-      authors: row.authors,
-      publicationDate: row.publication_date,
-      paperUrl: row.paper_url,
-    },
-  };
+    const row = await insertPaper(query, issueId, validated.value);
+    return {
+      statusCode: 201,
+      body: {
+        journalID: journalId,
+        issueID: row.issue_id,
+        paperID: row.id,
+        title: row.title,
+        authors: row.authors,
+        publicationDate: row.publication_date,
+        paperUrl: row.paper_url,
+      },
+    };
+  } catch (err) {
+    console.error("addPaperCore failed", err);
+    return errorResult(500, `Failed to add paper: ${err}`);
+  }
 }
 
 export const handler = async (
@@ -57,5 +70,9 @@ export const handler = async (
     event.body,
     realQuery,
   );
-  return { statusCode: result.statusCode, body: JSON.stringify(result.body) };
+  return {
+    statusCode: result.statusCode,
+    body: JSON.stringify(result.body),
+    ...resultParams,
+  };
 };
