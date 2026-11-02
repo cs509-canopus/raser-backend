@@ -29,14 +29,7 @@ export function parseJsonBody(
   }
 }
 
-/**
- * DESIGN FLAG for Krishna: the ERD makes `authors` a required NOT NULL column but
- * defaults it to '{}' (empty array) at the DB level, so the database itself doesn't
- * force a paper to be submitted with authors filled in. This validation follows the
- * DB's lead and treats `authors` as optional (defaulting to []) rather than requiring at
- * least one — confirm that's actually right; a paper with zero authors feels like it
- * shouldn't be possible in practice, the schema just doesn't forbid it.
- */
+// authors optional, db defaults to '{}'. TODO: should we require at least one?
 export function validateAddPaperBody(body: unknown): ValidationResult {
   if (typeof body !== "object" || body === null || Array.isArray(body)) {
     return { ok: false, error: "Request body must be a JSON object" };
