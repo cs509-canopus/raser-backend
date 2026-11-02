@@ -101,6 +101,23 @@ export class ApiStack extends cdk.Stack {
       new apigateway.LambdaIntegration(getJournalFunction),
     );
 
+    // POST /journals
+    const createJournalFunction = this.createLambda({
+      id: "CreateJournal",
+      entry: path.join(
+        __dirname,
+        "..",
+        "lambda",
+        "journals",
+        "create-journal.ts",
+      ),
+      dbAccess: true,
+    });
+    journalsResource.addMethod(
+      "POST",
+      new apigateway.LambdaIntegration(createJournalFunction),
+    );
+
     const createIssueFunction = this.createLambda({
       id: "CreateIssue",
       entry: path.join(
