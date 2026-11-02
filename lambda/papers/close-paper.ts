@@ -8,6 +8,14 @@ import {
   type QueryFn,
 } from "./shared/types";
 
+const resultParams: Partial<APIGatewayProxyResult> = {
+  isBase64Encoded: false,
+  headers: {
+    "Access-Control-Allow-Origin": "*",
+  },
+  multiValueHeaders: {},
+};
+
 // TODO: no auth yet, should be restricted to whoever can edit the issue
 export async function closePaperCore(
   paperId: string | undefined,
@@ -17,20 +25,25 @@ export async function closePaperCore(
     return errorResult(400, "Invalid paperID");
   }
 
-  const existing = await getPaperById(query, paperId);
-  if (!existing) {
-    return errorResult(400, "Invalid paperID");
-  }
+  try {
+    const existing = await getPaperById(query, paperId);
+    if (!existing) {
+      return errorResult(400, "Invalid paperID");
+    }
 
-  if (await hasIncompleteReview(query, paperId)) {
-    return errorResult(400, "Paper is currently under review");
-  }
+    if (await hasIncompleteReview(query, paperId)) {
+      return errorResult(400, "Paper is currently under review");
+    }
 
-  if (!existing.is_closed) {
-    await closePaper(query, paperId);
-  }
+    if (!existing.is_closed) {
+      await closePaper(query, paperId);
+    }
 
-  return { statusCode: 200, body: { paperID: paperId } };
+    return { statusCode: 200, body: { paperID: paperId } };
+  } catch (err) {
+    console.error("withdrawPaperCore failed", err);
+    return errorResult(500, `Failed to withdraw paper: ${err}`);
+  }
 }
 
 export const handler = async (
@@ -40,5 +53,9 @@ export const handler = async (
     event.pathParameters?.paperID,
     realQuery,
   );
-  return { statusCode: result.statusCode, body: JSON.stringify(result.body) };
+  return {
+    statusCode: result.statusCode,
+    body: JSON.stringify(result.body),
+    ...resultParams,
+  };
 };
