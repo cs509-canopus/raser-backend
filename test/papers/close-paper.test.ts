@@ -1,4 +1,4 @@
-import { withdrawPaperCore } from "../../lambda/papers/withdraw-paper";
+import { closePaperCore } from "../../lambda/papers/close-paper";
 import type { QueryFn } from "../../lambda/papers/shared/types";
 
 const PAPER_ID = "22222222-2222-2222-2222-222222222222";
@@ -17,16 +17,16 @@ function openPaperRow(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
-describe("withdrawPaperCore", () => {
+describe("closePaperCore", () => {
   it("returns 400 when paperID is missing", async () => {
     const query: QueryFn = async () => ({ rows: [] });
-    const result = await withdrawPaperCore(undefined, query);
+    const result = await closePaperCore(undefined, query);
     expect(result.statusCode).toBe(400);
   });
 
   it("returns 400 when the paper doesn't exist", async () => {
     const query: QueryFn = async () => ({ rows: [] });
-    const result = await withdrawPaperCore(PAPER_ID, query);
+    const result = await closePaperCore(PAPER_ID, query);
     expect(result.statusCode).toBe(400);
   });
 
@@ -36,7 +36,7 @@ describe("withdrawPaperCore", () => {
       return { rows: [openPaperRow()] };
     };
 
-    const result = await withdrawPaperCore(PAPER_ID, query);
+    const result = await closePaperCore(PAPER_ID, query);
 
     expect(result.statusCode).toBe(400);
     expect(result.body).toEqual({ error: "Paper is currently under review" });
@@ -51,14 +51,14 @@ describe("withdrawPaperCore", () => {
       return { rows: [openPaperRow()] };
     };
 
-    const result = await withdrawPaperCore(PAPER_ID, query);
+    const result = await closePaperCore(PAPER_ID, query);
 
     expect(result.statusCode).toBe(200);
     expect(result.body).toEqual({ paperID: PAPER_ID });
     expect(calls.some((sql) => sql.includes("UPDATE"))).toBe(true);
   });
 
-  it("is idempotent: withdrawing an already-closed paper doesn't run an UPDATE", async () => {
+  it("is idempotent: closing an already-closed paper doesn't run an UPDATE", async () => {
     const calls: string[] = [];
     const query: QueryFn = async (sql) => {
       calls.push(sql);
@@ -66,7 +66,7 @@ describe("withdrawPaperCore", () => {
       return { rows: [openPaperRow({ is_closed: true })] };
     };
 
-    const result = await withdrawPaperCore(PAPER_ID, query);
+    const result = await closePaperCore(PAPER_ID, query);
 
     expect(result.statusCode).toBe(200);
     expect(result.body).toEqual({ paperID: PAPER_ID });
