@@ -1,3 +1,4 @@
+require('dotenv').config();
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 import { ApiStack } from "./api-stack";

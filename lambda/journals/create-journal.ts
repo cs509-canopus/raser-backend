@@ -96,11 +96,12 @@ export async function createJournal(
 ): Promise<CreateJournalResult | CreateJournalError> {
     // create journal entry and return the created row
     try {
+        // TODO: replace hardcoded owner_id in next iteration with actual user ID from auth context
         const createJournalResult = await query<JournalSchema>(
             `INSERT INTO journals (owner_id, name, description, website_url, cover_image_url)
-             VALUES ($1::uuid, $2::string, $3, $4, $5) 
+             VALUES ('ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid, $1::text, $2, $3, $4) 
              RETURNING *`,
-             [args.ownerID, args.name, args.description, args.websiteUrl, args.coverImageUrl],
+             [args.name, args.description, args.websiteUrl, args.coverImageUrl],
         );
 
         // return error if journal was not created
