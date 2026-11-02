@@ -1,4 +1,4 @@
-// POST /issues/{issueID}/papers — issue #21
+// POST /issues/{issueID}/papers (#21)
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query as realQuery } from "../db";
 import { insertPaper, journalIdForIssue } from "./shared/papers-repo";

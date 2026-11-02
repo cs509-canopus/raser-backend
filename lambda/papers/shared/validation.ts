@@ -1,4 +1,4 @@
-// Request body validation for POST /issues/{issueID}/papers (issue #13).
+// add paper body validation (#21)
 
 export interface AddPaperInput {
   title: string;
@@ -70,8 +70,7 @@ export function validateAddPaperBody(body: unknown): ValidationResult {
 
   let paperUrl: string | null = null;
   if (b.paperUrl !== undefined && b.paperUrl !== null) {
-    // Deliberately loose (scheme check only, no full URL parse) — good enough to catch
-    // "someone pasted a title in here by mistake" without rejecting valid-but-unusual URLs.
+    // just check http(s), not full url parsing
     if (!isNonEmptyString(b.paperUrl) || !/^https?:\/\//.test(b.paperUrl)) {
       return { ok: false, error: "paperUrl must be an http(s) URL" };
     }
