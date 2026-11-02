@@ -1,6 +1,26 @@
 # Shared helpers for reaching private resources through EIC endpoint -> SSH -> bastion.
 # Expects AWS_DEFAULT_REGION to be set.
 
+# Git Bash on Windows runs the native aws.exe, which ends output lines with \r\n. $(...) only
+# strips the \n, so IDs would carry a stray \r. Strip it from stdout there; other OSes are untouched.
+# (ssh's ProxyCommand runs in a fresh shell, so the binary tunnel stream never goes through this.)
+case "$OSTYPE" in
+  msys* | cygwin*)
+    aws() {
+      command aws "$@" | tr -d '\r'
+      return "${PIPESTATUS[0]}"
+    } ;;
+esac
+
+# native_path <path>
+# Path in the form native programs (aws.exe on Windows) can open; unchanged on Linux/macOS.
+native_path() {
+  case "$OSTYPE" in
+    msys* | cygwin*) cygpath -m "$1" ;;
+    *) printf '%s\n' "$1" ;;
+  esac
+}
+
 # stack_output <stack-name> <output-key>
 stack_output() {
   aws cloudformation describe-stacks --stack-name "$1" \
@@ -41,7 +61,7 @@ start_forward() {
   for attempt in 1 2 3 4 5 6; do
     # The public key is accepted for 60 seconds, so push it right before every attempt.
     if ! aws ec2-instance-connect send-ssh-public-key --instance-id "$BASTION_ID" \
-      --instance-os-user ec2-user --ssh-public-key "file://$key_dir/key.pub" >>"$log" 2>&1; then
+      --instance-os-user ec2-user --ssh-public-key "file://$(native_path "$key_dir/key.pub")" >>"$log" 2>&1; then
       echo "    ! couldn't push the SSH key (see $log)"; rm -rf "$key_dir"; return 1
     fi
     # Host-key checking is off because the bastion is replaced whenever its AMI updates;
