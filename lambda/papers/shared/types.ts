@@ -23,6 +23,10 @@ export interface ViewPaperResponse {
   journalID: string;
   issueID: string;
   paperID: string;
+  title: string;
+  authors: string[];
+  publicationDate: string | null;
+  paperUrl: string | null;
   reviews: string[];
 }
 

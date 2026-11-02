@@ -66,19 +66,41 @@ export async function closePaper(
   return (rows[0] as unknown as PaperRow) ?? null;
 }
 
+export interface PaperViewInfo {
+  journalId: string;
+  issueId: string;
+  title: string;
+  authors: string[];
+  publicationDate: string | null;
+  paperUrl: string | null;
+  reviewIds: string[];
+}
+
 export async function getPaperViewInfo(
   query: QueryFn,
   paperId: string,
-): Promise<{ journalId: string; issueId: string; reviewIds: string[] } | null> {
+): Promise<PaperViewInfo | null> {
+  // return date as YYYY-MM-DD string
   const { rows } = await query(
-    `SELECT j.id AS journal_id, i.id AS issue_id
+    `SELECT j.id AS journal_id, i.id AS issue_id, p.title, p.authors,
+            to_char(p.publication_date, 'YYYY-MM-DD') AS publication_date,
+            p.paper_url
      FROM papers p
      JOIN issues i ON i.id = p.issue_id
      JOIN journals j ON j.id = i.journal_id
      WHERE p.id = $1`,
     [paperId],
   );
-  const row = rows[0] as { journal_id: string; issue_id: string } | undefined;
+  const row = rows[0] as
+    | {
+        journal_id: string;
+        issue_id: string;
+        title: string;
+        authors: string[];
+        publication_date: string | null;
+        paper_url: string | null;
+      }
+    | undefined;
   if (!row) return null;
 
   const reviews = await query(
@@ -87,7 +109,15 @@ export async function getPaperViewInfo(
   );
   const reviewIds = reviews.rows.map((r) => (r as { id: string }).id);
 
-  return { journalId: row.journal_id, issueId: row.issue_id, reviewIds };
+  return {
+    journalId: row.journal_id,
+    issueId: row.issue_id,
+    title: row.title,
+    authors: row.authors,
+    publicationDate: row.publication_date,
+    paperUrl: row.paper_url,
+    reviewIds,
+  };
 }
 
 export async function hasIncompleteReview(
