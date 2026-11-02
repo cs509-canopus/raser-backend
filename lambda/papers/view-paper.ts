@@ -36,6 +36,10 @@ export async function viewPaperCore(
         journalID: info.journalId,
         issueID: info.issueId,
         paperID: paperId,
+        title: info.title,
+        authors: info.authors,
+        publicationDate: info.publicationDate,
+        paperUrl: info.paperUrl,
         reviews: info.reviewIds,
       },
     };
