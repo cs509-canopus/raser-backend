@@ -86,6 +86,7 @@ export interface CreateIssueResult {
   issueID: string;
   volumeNumber: number;
   issueNumber: number;
+  createdAt: Date;
   papers: string[];
 }
 
@@ -127,6 +128,7 @@ export async function createIssue(
       issueID: issueRow.id,
       volumeNumber: issueRow.volume_number,
       issueNumber: issueRow.issue_number,
+      createdAt: issueRow.created_at,
       papers: [], // always zero issues on creation
     };
   } catch (err) {
