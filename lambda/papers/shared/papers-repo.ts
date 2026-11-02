@@ -70,6 +70,7 @@ export interface PaperViewInfo {
   journalId: string;
   issueId: string;
   title: string;
+  isClosed: boolean;
   authors: string[];
   publicationDate: string | null;
   paperUrl: string | null;
@@ -82,7 +83,7 @@ export async function getPaperViewInfo(
 ): Promise<PaperViewInfo | null> {
   // return date as YYYY-MM-DD string
   const { rows } = await query(
-    `SELECT j.id AS journal_id, i.id AS issue_id, p.title, p.authors,
+    `SELECT j.id AS journal_id, i.id AS issue_id, p.title, p.is_closed, p.authors,
             to_char(p.publication_date, 'YYYY-MM-DD') AS publication_date,
             p.paper_url
      FROM papers p
@@ -96,6 +97,7 @@ export async function getPaperViewInfo(
         journal_id: string;
         issue_id: string;
         title: string;
+        is_closed: boolean;
         authors: string[];
         publication_date: string | null;
         paper_url: string | null;
@@ -113,6 +115,7 @@ export async function getPaperViewInfo(
     journalId: row.journal_id,
     issueId: row.issue_id,
     title: row.title,
+    isClosed: row.is_closed,
     authors: row.authors,
     publicationDate: row.publication_date,
     paperUrl: row.paper_url,

@@ -37,6 +37,7 @@ export async function viewPaperCore(
         issueID: info.issueId,
         paperID: paperId,
         title: info.title,
+        isClosed: info.isClosed,
         authors: info.authors,
         publicationDate: info.publicationDate,
         paperUrl: info.paperUrl,
