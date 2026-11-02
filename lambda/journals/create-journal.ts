@@ -87,7 +87,7 @@ interface JournalSchema {
     name: string;
     description: string | null;
     website_url: string | null;
-    cover_image_url: string | null;
+    cover_image: string | null;
     created_at: Date;
 }
 
@@ -98,7 +98,7 @@ export async function createJournal(
     try {
         // TODO: replace hardcoded owner_id in next iteration with actual user ID from auth context
         const createJournalResult = await query<JournalSchema>(
-            `INSERT INTO journals (owner_id, name, description, website_url, cover_image_url)
+            `INSERT INTO journals (owner_id, name, description, website_url, cover_image)
              VALUES ('ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid, $1::text, $2, $3, $4) 
              RETURNING *`,
              [args.name, args.description, args.websiteUrl, args.coverImageUrl],
@@ -118,7 +118,7 @@ export async function createJournal(
             name: journalRow.name,
             description: journalRow.description,
             websiteUrl: journalRow.website_url,
-            coverImageUrl: journalRow.cover_image_url,
+            coverImageUrl: journalRow.cover_image,
         };
     } catch (e) {
         console.error("createJournal failed", e);
