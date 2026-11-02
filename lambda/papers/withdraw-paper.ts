@@ -1,4 +1,4 @@
-// POST /papers/{paperID}/withdraw — issue #23
+// POST /papers/{paperID}/withdraw (#23)
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query as realQuery } from "../db";
 import { closePaper, getPaperById, hasIncompleteReview } from "./shared/papers-repo";

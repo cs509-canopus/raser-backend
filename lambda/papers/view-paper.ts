@@ -1,4 +1,4 @@
-// GET /papers/{paperID} — issue #22
+// GET /papers/{paperID} (#22)
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query as realQuery } from "../db";
 import { getPaperViewInfo } from "./shared/papers-repo";
