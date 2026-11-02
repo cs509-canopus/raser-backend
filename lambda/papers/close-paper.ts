@@ -1,4 +1,4 @@
-// POST /papers/{paperID}/withdraw (#23)
+// POST /papers/{paperID}/close (#23)
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query as realQuery } from "../db";
 import { closePaper, getPaperById, hasIncompleteReview } from "./shared/papers-repo";
@@ -17,7 +17,7 @@ const resultParams: Partial<APIGatewayProxyResult> = {
 };
 
 // TODO: no auth yet, should be restricted to whoever can edit the issue
-export async function withdrawPaperCore(
+export async function closePaperCore(
   paperId: string | undefined,
   query: QueryFn,
 ): Promise<CoreResult> {
@@ -49,7 +49,7 @@ export async function withdrawPaperCore(
 export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
-  const result = await withdrawPaperCore(
+  const result = await closePaperCore(
     event.pathParameters?.paperID,
     realQuery,
   );

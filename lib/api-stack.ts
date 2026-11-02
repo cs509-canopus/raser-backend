@@ -172,24 +172,18 @@ export class ApiStack extends cdk.Stack {
       new apigateway.LambdaIntegration(viewPaperFunction),
     );
 
-    const withdrawPaperFunction = this.createLambda({
-      id: "WithdrawPaper",
-      entry: path.join(
-        __dirname,
-        "..",
-        "lambda",
-        "papers",
-        "withdraw-paper.ts",
-      ),
+    const closePaperFunction = this.createLambda({
+      id: "ClosePaper",
+      entry: path.join(__dirname, "..", "lambda", "papers", "close-paper.ts"),
       dbAccess: true,
     });
 
-    // /papers/{paperID}/withdraw
-    const papersPaperIDWithdrawResource =
-      papersPaperIDResource.addResource("withdraw");
-    papersPaperIDWithdrawResource.addMethod(
+    // /papers/{paperID}/close
+    const papersPaperIDCloseResource =
+      papersPaperIDResource.addResource("close");
+    papersPaperIDCloseResource.addMethod(
       "POST",
-      new apigateway.LambdaIntegration(withdrawPaperFunction),
+      new apigateway.LambdaIntegration(closePaperFunction),
     );
   }
 

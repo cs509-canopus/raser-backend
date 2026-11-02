@@ -26,7 +26,7 @@ export interface ViewPaperResponse {
   reviews: string[];
 }
 
-export interface WithdrawPaperResponse {
+export interface ClosePaperResponse {
   paperID: string;
 }
 
