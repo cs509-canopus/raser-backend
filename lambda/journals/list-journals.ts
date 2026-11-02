@@ -46,6 +46,7 @@ export interface JournalInfo {
   id: string;
   name: string;
   description: string;
+  issueCount: number;
 }
 
 export interface ListJournalsResult {
@@ -65,13 +66,21 @@ export async function listJournals(
   try {
     // TODO: add WHERE owner_id = {id of the logged-in user}
     const result = await query<JournalInfo>(
-      `SELECT id, name, description FROM journals
+      `SELECT 
+        journals.id, 
+        journals.name, 
+        journals.description, 
+        COUNT(issues.id) as issueCount
+       FROM journals
+       LEFT JOIN issues ON issues.journal_id = journals.id
        WHERE $1::text IS NULL
           OR name ILIKE '%' || $1 || '%'
           OR description ILIKE '%' || $1 || '%'
-       ORDER BY name`,
+       GROUP BY journals.id 
+       ORDER BY name;`,
       [q || null],
     );
+
     return { journals: result.rows };
   } catch (err) {
     console.error("listJournals failed", err);
