@@ -44,7 +44,7 @@ export const handler = async (
 
   // Edit the selected rubric
   const result = await editRubric({
-    id: pathParams.id!,
+    id: pathParams.rubricID!,
     ...args,
   });
 
@@ -78,7 +78,7 @@ export interface EditRubricParams extends EditRubricArgs {
 }
 
 export interface EditRubricResult {
-  rubricID: string;
+  id: string;
   title: string;
   lowQualityThreshold: number;
   highQualityThreshold: number;
@@ -97,7 +97,7 @@ interface RubricsSchema {
 
 /**
  * Updates an existing rubric.
- * @prop rubricID - ID of the rubric to update
+ * @prop id - ID of the rubric to update
  * @prop title - Updated rubric name
  * @prop lowQualityThreshold - Updated low quality threshold
  * @prop highQualityThreshold - Updated high quality threshold
@@ -177,7 +177,7 @@ export async function editRubric(
     const rubricRow = result.rows[0];
 
     return {
-      rubricID: rubricRow.id,
+      id: rubricRow.id,
       title: rubricRow.title,
       lowQualityThreshold: rubricRow.low_score_threshold,
       highQualityThreshold: rubricRow.high_score_threshold,

@@ -216,6 +216,61 @@ export class ApiStack extends cdk.Stack {
       "POST",
       new apigateway.LambdaIntegration(closePaperFunction),
     );
+
+    // RUBRIC ENDPOINTS
+    const rubricsResource = api.root.addResource("rubrics");
+
+    const createRubricFunction = this.createLambda({
+      id: "CreateRubric",
+      entry: path.join(__dirname, "..", "lambda", "rubrics", "create-rubric.ts"),
+      dbAccess: true,
+    });
+
+    // POST /rubrics
+    rubricsResource.addMethod(
+      "POST",
+      new apigateway.LambdaIntegration(createRubricFunction),
+    );
+
+    const deleteRubricFunction = this.createLambda({
+      id: "DeleteRubric",
+      entry: path.join(__dirname, "..", "lambda", "rubrics", "delete-rubric.ts"),
+      dbAccess: true,
+    });
+
+    // /rubrics/{rubricID}
+    const rubricsRubricIDResource =
+      rubricsResource.addResource("{rubricID}");
+
+    rubricsRubricIDResource.addMethod(
+      "DELETE",
+      new apigateway.LambdaIntegration(deleteRubricFunction),
+    );
+
+    const editRubricFunction = this.createLambda({
+      id: "EditRubric",
+      entry: path.join(__dirname, "..", "lambda", "rubrics", "edit-rubric.ts"),
+      dbAccess: true,
+    });
+
+    // PATCH /rubrics/{rubricID}
+    rubricsRubricIDResource.addMethod(
+      "PATCH",
+      new apigateway.LambdaIntegration(editRubricFunction),
+    );
+
+    const getRubricsFunction = this.createLambda({
+      id: "GetRubric",
+      entry: path.join(__dirname, "..", "lambda", "rubrics", "get-rubrics.ts"),
+      dbAccess: true,
+    });
+
+    // GET /rubrics/{rubricID}
+    rubricsRubricIDResource.addMethod(
+      "GET",
+      new apigateway.LambdaIntegration(getRubricsFunction),
+    );
+
   }
 
   private createLambda({

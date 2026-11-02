@@ -1,4 +1,4 @@
-import { deleteRubric } from "../lambda/rubrics/delete-rubrics";
+import { deleteRubric } from "../lambda/rubrics/delete-rubric";
 import { withTransaction } from "../lambda/db";
 
 jest.mock("../lambda/db", () => ({
