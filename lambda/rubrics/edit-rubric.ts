@@ -125,16 +125,16 @@ export async function editRubric(
     // Validate threshold values
     if (
       args.lowQualityThreshold !== undefined &&
-      (args.lowQualityThreshold < 0 || args.lowQualityThreshold > 100)
+      (typeof args.lowQualityThreshold !== "number" ||  Number.isFinite(args.lowQualityThreshold))
     ) {
-      return { error: "lowQualityThreshold must be between 0 and 100" };
+      return { error: "lowQualityThreshold must be a valid number between 0 and 100" };
     }
 
     if (
       args.highQualityThreshold !== undefined &&
-      (args.highQualityThreshold < 0 || args.highQualityThreshold > 100)
+      (typeof args.highQualityThreshold !== "number" ||  Number.isFinite(args.highQualityThreshold))
     ) {
-      return { error: "highQualityThreshold must be between 0 and 100" };
+      return { error: "highQualityThreshold must be a valid number between 0 and 100" };
     }
 
     // Check that low quality threshold is lower than high quality threshold
@@ -143,6 +143,37 @@ export async function editRubric(
       args.highQualityThreshold !== undefined &&
       args.lowQualityThreshold >= args.highQualityThreshold
     ) {
+      return {
+        error: "lowQualityThreshold must be lower than highQualityThreshold",
+      };
+    }
+
+    // Get existing threshold values
+    const existingResult = await query<RubricsSchema>(
+      `SELECT low_score_threshold, high_score_threshold
+      FROM rubrics
+      WHERE id = $1::uuid`,
+      [args.id],
+    );
+
+    // Return error if rubric does not exist
+    if (existingResult.rowCount === 0) {
+      return {
+        error: `Could not find rubric with ID ${args.id}`,
+      };
+    }
+
+    // Determine final threshold values
+    const existingRubric = existingResult.rows[0];
+
+    const finalLowQualityThreshold =
+      args.lowQualityThreshold ?? existingRubric.low_score_threshold;
+
+    const finalHighQualityThreshold =
+      args.highQualityThreshold ?? existingRubric.high_score_threshold;
+
+    // Check if new lowQualityThreshold is larger than newer or older highQualityThreshold
+    if (finalLowQualityThreshold >= finalHighQualityThreshold) {
       return {
         error: "lowQualityThreshold must be lower than highQualityThreshold",
       };

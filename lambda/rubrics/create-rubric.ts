@@ -120,8 +120,8 @@ export interface CreateRubricError {
 interface RubricsSchema {
   id: string;
   title: string;
-  high_quality_threshold: number;
-  low_quality_threshold: number;
+  high_score_threshold: number;
+  low_score_threshold: number;
   publication_date: Date;
 }
 
@@ -133,8 +133,8 @@ export async function createRubric(
     const createRubricResult = await query<RubricsSchema>(
       `INSERT INTO rubrics (
          title,
-         high_quality_threshold,
-         low_quality_threshold
+         high_score_threshold,
+         low_score_threshold
        )
        VALUES ($1, $2::integer, $3::integer)
        RETURNING *`,
@@ -159,8 +159,8 @@ export async function createRubric(
       rubricID: rubricRow.id,
       title: rubricRow.title,
       questions: [],
-      highQualityThreshold: rubricRow.high_quality_threshold,
-      lowQualityThreshold: rubricRow.low_quality_threshold,
+      highQualityThreshold: rubricRow.high_score_threshold,
+      lowQualityThreshold: rubricRow.low_score_threshold,
       score: 0,
       publicationDate: rubricRow.publication_date.toISOString(),
       deprecationDate: null,
