@@ -8,6 +8,8 @@ node_modules
 cdk.out
 
 # Developer files
+.env
+.env.local
 .envrc
 ltex.dictionary.en-US.txt
 ltex.disabledRules.en-US.txt
