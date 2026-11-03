@@ -93,7 +93,7 @@ export async function deleteRubric(
 
       // Delete all linked rubric questions
       await client.query(
-        `DELETE FROM "rubricQuestion"
+        `DELETE FROM "rubric_questions"
          WHERE rubric_id = $1::uuid`,
         [args.rubricID],
       );
@@ -111,6 +111,6 @@ export async function deleteRubric(
     });
   } catch (err) {
     console.error("deleteRubric failed", err);
-    return { error: "Failed to delete rubric" };
+    return { error: `Failed to delete rubric: ${err}` };
   }
 }
