@@ -271,6 +271,18 @@ export class ApiStack extends cdk.Stack {
       new apigateway.LambdaIntegration(getRubricsFunction),
     );
 
+    const listRubricsFunction = this.createLambda({
+      id: "ListRubric",
+      entry: path.join(__dirname, "..", "lambda", "rubrics", "list-rubrics.ts"),
+      dbAccess: true,
+    });
+
+    // GET /rubrics/{rubricID}
+    rubricsRubricIDResource.addMethod(
+      "GET",
+      new apigateway.LambdaIntegration(listRubricsFunction),
+    );
+
   }
 
   private createLambda({

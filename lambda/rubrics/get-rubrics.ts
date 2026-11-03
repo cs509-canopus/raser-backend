@@ -12,38 +12,24 @@ const resultParams: Partial<APIGatewayProxyResult> = {
 export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
-  // Extract path params
-  const pathParams = event.pathParameters || {};
+  // Test user ID
+  const userID = "ffffffff-ffff-ffff-ffff-ffffffffffff";
 
-  // Extract authenticated user ID from Cognito
-  const authorizer = event.requestContext.authorizer;
-  const userID =
-    authorizer?.claims?.sub ?? authorizer?.jwt?.claims?.sub;
+  // Rubric ID from API Gateway (is there a hardcoded rubric we want to make)
+  const rubricID = event.pathParameters?.rubricID;
 
-  // Make sure rubricID is present
-  let error = "";
-  if (!Object.hasOwn(pathParams, "rubricID")) {
-    error = "Missing path parameter: rubricID";
-  } else if (!userID) {
-    error = "Missing authenticated user ID";
-  }
-
-  // Return 400 early if there is an error
-  if (error !== "") {
+  if (!rubricID) {
     return {
       statusCode: 400,
-      body: JSON.stringify({ error }),
+      body: JSON.stringify({
+        error: "Missing path parameter: rubricID",
+      }),
       ...resultParams,
     };
   }
 
-  // Get the selected rubric
-  const result = await getRubric({
-    rubricID: pathParams.rubricID!,
-    userID,
-  });
+  const result = await getRubric({ rubricID, userID });
 
-  // Construct response object
   let status;
   let body;
 
