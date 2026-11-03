@@ -141,7 +141,7 @@ export async function createRubric(
          high_score_threshold,
          low_score_threshold
        )
-       VALUES ($1, $2::integer, $3::integer)
+       VALUES ($1, $2, $3::integer, $4::integer)
        RETURNING *`,
       [
         args.title,
