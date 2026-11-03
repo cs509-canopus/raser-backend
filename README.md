@@ -88,3 +88,10 @@ To deploy all the stacks in a stage, run the following command (replacing `<stag
 ```sh
 cdk deploy '<stage-name>/*'
 ```
+
+## AI use
+
+> [!NOTE]
+> Krishna (kgarg): some of my early commits were written with help from Claude Code, mainly
+> the RDS setup in #30 and the paper endpoints in #33 (closed). The "Kairo" notes in those
+> diffs came from that.
