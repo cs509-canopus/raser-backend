@@ -70,9 +70,10 @@ export const handler = async (
     };
   }
 
-  // Create rubric
+  // Create rubric (Test user)
   const result = await createRubric({
     title: bodyArgs.name.trim(),
+    designer: "ffff-ffff-ffff-ffffffffffff",
     highQualityThreshold,
     lowQualityThreshold,
   });
@@ -98,12 +99,14 @@ export const handler = async (
 
 export interface CreateRubricArgs {
   title: string;
+  designer: string;
   highQualityThreshold: number;
   lowQualityThreshold: number;
 }
 
 export interface CreateRubricResult {
   rubricID: string;
+  designerID: string;
   title: string;
   questions: string[];
   highQualityThreshold: number;
@@ -119,6 +122,7 @@ export interface CreateRubricError {
 
 interface RubricsSchema {
   id: string;
+  designer: string;
   title: string;
   high_score_threshold: number;
   low_score_threshold: number;
@@ -133,6 +137,7 @@ export async function createRubric(
     const createRubricResult = await query<RubricsSchema>(
       `INSERT INTO rubrics (
          title,
+         designer_id,
          high_score_threshold,
          low_score_threshold
        )
@@ -140,6 +145,7 @@ export async function createRubric(
        RETURNING *`,
       [
         args.title,
+        args.designer,
         args.highQualityThreshold,
         args.lowQualityThreshold,
       ],
@@ -157,6 +163,7 @@ export async function createRubric(
 
     return {
       rubricID: rubricRow.id,
+      designerID: rubricRow.designer,
       title: rubricRow.title,
       questions: [],
       highQualityThreshold: rubricRow.high_score_threshold,
