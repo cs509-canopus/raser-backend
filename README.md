@@ -32,6 +32,8 @@ raser-backend/
 |   |-- lambda-development.md     # lambda function development guide
 |   |-- virtual-private-cloud.md  # explanation of VPC architecture
 |-- lambda/                       # code for lambda functions
+|-- lib/                          # stack and stage definitions
+|-- scripts/                      # steps for connecting to db & testing with sam cli
 |-- test/                         # unit tests
 |-- package.json
 |-- ...
