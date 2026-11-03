@@ -220,6 +220,18 @@ export class ApiStack extends cdk.Stack {
     // RUBRIC ENDPOINTS
     const rubricsResource = api.root.addResource("rubrics");
 
+    const listRubricsFunction = this.createLambda({
+      id: "ListRubric",
+      entry: path.join(__dirname, "..", "lambda", "rubrics", "list-rubrics.ts"),
+      dbAccess: true,
+    });
+
+    // GET /rubrics/
+    rubricsResource.addMethod(
+      "GET",
+      new apigateway.LambdaIntegration(listRubricsFunction),
+    );
+
     const createRubricFunction = this.createLambda({
       id: "CreateRubric",
       entry: path.join(__dirname, "..", "lambda", "rubrics", "create-rubric.ts"),
@@ -270,19 +282,6 @@ export class ApiStack extends cdk.Stack {
       "GET",
       new apigateway.LambdaIntegration(getRubricsFunction),
     );
-
-    const listRubricsFunction = this.createLambda({
-      id: "ListRubric",
-      entry: path.join(__dirname, "..", "lambda", "rubrics", "list-rubrics.ts"),
-      dbAccess: true,
-    });
-
-    // GET /rubrics/{rubricID}
-    rubricsRubricIDResource.addMethod(
-      "GET",
-      new apigateway.LambdaIntegration(listRubricsFunction),
-    );
-
   }
 
   private createLambda({
