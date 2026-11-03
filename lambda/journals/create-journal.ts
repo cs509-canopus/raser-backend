@@ -1,7 +1,6 @@
 // POST /journals - issue #13
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
-import { DatabaseError } from "pg";
 
 const resultParams: Partial<APIGatewayProxyResult> = {
   isBase64Encoded: false,
@@ -69,6 +68,7 @@ export interface CreateJournalArgs {
 }
 
 export interface CreateJournalResult {
+  journalID: string;
   ownerID: string;
   name: string;
   description: string | null;
@@ -113,6 +113,7 @@ export async function createJournal(
     // construct response object
     const journalRow = createJournalResult.rows[0];
     return {
+      journalID: journalRow.id,
       ownerID: journalRow.owner_id,
       name: journalRow.name,
       description: journalRow.description,
