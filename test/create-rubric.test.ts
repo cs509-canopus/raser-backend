@@ -11,6 +11,7 @@ jest.mock("../lambda/db", () => ({
 const mockQuery = jest.mocked(query);
 
 const rubricID = "11111111-1111-1111-1111-111111111111";
+const userID = "ffffffff-ffff-ffff-ffff-ffffffffffff"
 
 const publicationDate = new Date("2025-01-15T12:00:00Z");
 
@@ -46,7 +47,7 @@ describe("createRubric", () => {
 
     const result = await createRubric({
       title: "Test Rubric",
-      designer: "ffffffff-ffff-ffff-ffff-ffffffffffff",
+      designer: userID,
       highQualityThreshold: 90,
       lowQualityThreshold: 60,
     });
@@ -71,7 +72,7 @@ describe("createRubric", () => {
 
     await createRubric({
       title: "Test Rubric",
-      designer: "ffffffff-ffff-ffff-ffff-ffffffffffff",
+      designer: userID,
       highQualityThreshold: 90,
       lowQualityThreshold: 60,
     });
@@ -90,7 +91,7 @@ describe("createRubric", () => {
 
     const result = await createRubric({
       title: "Test Rubric",
-      designer: "ffffffff-ffff-ffff-ffff-ffffffffffff",
+      designer: userID,
       highQualityThreshold: 90,
       lowQualityThreshold: 60,
     });
@@ -113,7 +114,7 @@ describe("createRubric", () => {
 
     const result = await createRubric({
       title: "Test Rubric",
-      designer: "ffffffff-ffff-ffff-ffff-ffffffffffff",
+      designer: userID,
       highQualityThreshold: 90,
       lowQualityThreshold: 60,
     });
@@ -130,7 +131,7 @@ describe("createRubric", () => {
 
     const result = await createRubric({
       title: "Test Rubric",
-      designer: "ffffffff-ffff-ffff-ffff-ffffffffffff",
+      designer: userID,
       highQualityThreshold: 90,
       lowQualityThreshold: 60,
     });
