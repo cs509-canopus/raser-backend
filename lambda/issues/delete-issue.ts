@@ -86,7 +86,7 @@ export async function deleteIssue(
        WHERE id = $1::uuid
        AND NOT EXISTS (
          SELECT 1 FROM papers 
-         WHERE papers.issue_id = $1::uuid)
+         WHERE papers.issue_id = $1::uuid AND papers.is_closed = FALSE)
        RETURNING *`,
       [args.issueID],
     );
