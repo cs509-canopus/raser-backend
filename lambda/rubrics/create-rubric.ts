@@ -73,7 +73,7 @@ export const handler = async (
   // Create rubric (Test user)
   const result = await createRubric({
     title: bodyArgs.name.trim(),
-    designer: "ffff-ffff-ffff-ffffffffffff",
+    designer: "ffffffff-ffff-ffff-ffff-ffffffffffff",
     highQualityThreshold,
     lowQualityThreshold,
   });
@@ -112,7 +112,7 @@ export interface CreateRubricResult {
   highQualityThreshold: number;
   lowQualityThreshold: number;
   score: number;
-  publicationDate: string;
+  publicationDate?: Date;
   deprecationDate: null;
 }
 
@@ -126,7 +126,7 @@ interface RubricsSchema {
   title: string;
   high_score_threshold: number;
   low_score_threshold: number;
-  publication_date: Date;
+  publication_date?: Date;
 }
 
 export async function createRubric(
@@ -169,7 +169,7 @@ export async function createRubric(
       highQualityThreshold: rubricRow.high_score_threshold,
       lowQualityThreshold: rubricRow.low_score_threshold,
       score: 0,
-      publicationDate: rubricRow.publication_date.toISOString(),
+      publicationDate: rubricRow.publication_date,
       deprecationDate: null,
     };
   } catch (err) {
@@ -182,7 +182,7 @@ export async function createRubric(
     } else {
       console.error("createRubric failed", err);
       return {
-        error: "Failed to create rubric",
+        error: `Failed to create rubric: ${err}`,
       };
     }
   }
