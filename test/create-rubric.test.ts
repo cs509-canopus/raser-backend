@@ -46,6 +46,7 @@ describe("createRubric", () => {
 
     const result = await createRubric({
       title: "Test Rubric",
+      designer: "ffffffff-ffff-ffff-ffff-ffffffffffff",
       highQualityThreshold: 90,
       lowQualityThreshold: 60,
     });
@@ -70,6 +71,7 @@ describe("createRubric", () => {
 
     await createRubric({
       title: "Test Rubric",
+      designer: "ffffffff-ffff-ffff-ffff-ffffffffffff",
       highQualityThreshold: 90,
       lowQualityThreshold: 60,
     });
@@ -88,6 +90,7 @@ describe("createRubric", () => {
 
     const result = await createRubric({
       title: "Test Rubric",
+      designer: "ffffffff-ffff-ffff-ffff-ffffffffffff",
       highQualityThreshold: 90,
       lowQualityThreshold: 60,
     });
@@ -110,6 +113,7 @@ describe("createRubric", () => {
 
     const result = await createRubric({
       title: "Test Rubric",
+      designer: "ffffffff-ffff-ffff-ffff-ffffffffffff",
       highQualityThreshold: 90,
       lowQualityThreshold: 60,
     });
@@ -126,6 +130,7 @@ describe("createRubric", () => {
 
     const result = await createRubric({
       title: "Test Rubric",
+      designer: "ffffffff-ffff-ffff-ffff-ffffffffffff",
       highQualityThreshold: 90,
       lowQualityThreshold: 60,
     });
@@ -151,6 +156,7 @@ describe("createRubric handler", () => {
 
     expect(JSON.parse(result.body)).toEqual({
       rubricID,
+      designer: "ffffffff-ffff-ffff-ffff-ffffffffffff",
       title: "Test Rubric",
       questions: [],
       highQualityThreshold: 90,
