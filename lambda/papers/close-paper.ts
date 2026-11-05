@@ -7,14 +7,7 @@ import {
   type CoreResult,
   type QueryFn,
 } from "./shared/types";
-
-const resultParams: Partial<APIGatewayProxyResult> = {
-  isBase64Encoded: false,
-  headers: {
-    "Access-Control-Allow-Origin": "*",
-  },
-  multiValueHeaders: {},
-};
+import { buildResponse } from "../response-builder";
 
 // TODO: no auth yet, should be restricted to whoever can edit the issue
 export async function closePaperCore(
@@ -53,9 +46,5 @@ export const handler = async (
     event.pathParameters?.paperID,
     realQuery,
   );
-  return {
-    statusCode: result.statusCode,
-    body: JSON.stringify(result.body),
-    ...resultParams,
-  };
+  return buildResponse(result.statusCode, result.body);
 };

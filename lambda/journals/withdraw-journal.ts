@@ -1,13 +1,6 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
-
-const resultParams: Partial<APIGatewayProxyResult> = {
-  isBase64Encoded: false,
-  headers: {
-    "Access-Control-Allow-Origin": "*",
-  },
-  multiValueHeaders: {},
-};
+import { buildResponse } from "../response-builder";
 
 export const handler = async (
   event: APIGatewayProxyEvent,
@@ -23,24 +16,15 @@ export const handler = async (
 
   // Return 400 early if there is an error
   if (error != "") {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: error }),
-      ...resultParams,
-    };
+    return buildResponse(400, { error: error });
   }
 
   // Withdraw the selected journal
   const result = await withdrawJournal({ journalID: pathParams.journalID! });
 
   // Construct response object
-  let status = "error" in result ? 400 : 200;
-  const body = JSON.stringify(result);
-  return {
-    statusCode: status,
-    body,
-    ...resultParams,
-  };
+  const status = "error" in result ? 400 : 200;
+  return buildResponse(status, result);
 };
 
 export interface WithdrawJournalArgs {

@@ -1,12 +1,5 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
-
-const resultParams: Partial<APIGatewayProxyResult> = {
-  isBase64Encoded: false,
-  headers: {
-    "Access-Control-Allow-Origin": "*",
-  },
-  multiValueHeaders: {},
-};
+import { buildResponse } from "./response-builder";
 
 export const handler = async (
   event: APIGatewayProxyEvent,
@@ -25,11 +18,7 @@ export const handler = async (
 
   // Return 400 early if there is an error
   if (error != "") {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: error }),
-      ...resultParams,
-    };
+    return buildResponse(400, { error: error });
   }
 
   // Extract paramters
@@ -40,11 +29,7 @@ export const handler = async (
   const result = echo({ text, quantity });
   const status = result.error ? 400 : 200;
 
-  return {
-    statusCode: status,
-    body: JSON.stringify(result),
-    ...resultParams,
-  };
+  return buildResponse(status, result);
 };
 
 export interface EchoArgs {
