@@ -1,13 +1,6 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
-
-const resultParams: Partial<APIGatewayProxyResult> = {
-  isBase64Encoded: false,
-  headers: {
-    "Access-Control-Allow-Origin": "*",
-  },
-  multiValueHeaders: {},
-};
+import { buildResponse } from "../response-builder";
 
 export const handler = async (
   event: APIGatewayProxyEvent,
@@ -17,22 +10,10 @@ export const handler = async (
 
   const result = await listRubrics({ userID });
 
-  let status;
-  let body;
-
   if ("error" in result) {
-    status = 500;
-    body = JSON.stringify({ error: result.error });
-  } else {
-    status = 200;
-    body = JSON.stringify(result);
+    return buildResponse(500, { error: result.error });
   }
-
-  return {
-    statusCode: status,
-    body,
-    ...resultParams,
-  };
+  return buildResponse(200, result);
 };
 
 export interface ListRubricsArgs {

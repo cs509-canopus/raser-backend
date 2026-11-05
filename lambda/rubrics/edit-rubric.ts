@@ -1,13 +1,6 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
-
-const resultParams: Partial<APIGatewayProxyResult> = {
-  isBase64Encoded: false,
-  headers: {
-    "Access-Control-Allow-Origin": "*",
-  },
-  multiValueHeaders: {},
-};
+import { buildResponse } from "../response-builder";
 
 export const handler = async (
   event: APIGatewayProxyEvent,
@@ -23,11 +16,7 @@ export const handler = async (
 
   // Return 400 early if there is an error
   if (error != "") {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: error }),
-      ...resultParams,
-    };
+    return buildResponse(400, { error: error });
   }
 
   // Parse request body
@@ -35,11 +24,7 @@ export const handler = async (
   try {
     args = JSON.parse(event.body ?? "{}");
   } catch {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: "Invalid JSON request body" }),
-      ...resultParams,
-    };
+    return buildResponse(400, { error: "Invalid JSON request body" });
   }
 
   // Edit the selected rubric
@@ -49,22 +34,11 @@ export const handler = async (
   });
 
   // Construct response object
-  let status;
-  let body;
-
   if ("error" in result) {
-    status = result.error.startsWith("Could not find") ? 404 : 400;
-    body = JSON.stringify({ error: result.error });
-  } else {
-    status = 200;
-    body = JSON.stringify(result);
+    const status = result.error.startsWith("Could not find") ? 404 : 400;
+    return buildResponse(status, { error: result.error });
   }
-
-  return {
-    statusCode: status,
-    body,
-    ...resultParams,
-  };
+  return buildResponse(200, result);
 };
 
 export interface EditRubricArgs {

@@ -1,13 +1,6 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
-
-const resultParams: Partial<APIGatewayProxyResult> = {
-  isBase64Encoded: false,
-  headers: {
-    "Access-Control-Allow-Origin": "*",
-  },
-  multiValueHeaders: {},
-};
+import { buildResponse } from "../response-builder";
 
 export const handler = async (
   event: APIGatewayProxyEvent,
@@ -20,22 +13,11 @@ export const handler = async (
   const result = await listJournals({ query });
 
   // Construct response object
-  let status;
-  let body;
   if (result.error !== undefined) {
     // Database error
-    status = 500;
-    body = JSON.stringify({ error: result.error });
-  } else {
-    status = 200;
-    body = JSON.stringify({ journals: result.journals });
+    return buildResponse(500, { error: result.error });
   }
-
-  return {
-    statusCode: status,
-    body: body,
-    ...resultParams,
-  };
+  return buildResponse(200, { journals: result.journals });
 };
 
 export interface ListJournalsArgs {

@@ -57,6 +57,7 @@ also be renamed accordingly_).
 ```ts
 // lambda/category/function-name.ts
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
+import { buildResponse } from "../response-builder";
 
 export const handler = async (
   event: APIGatewayProxyEvent,
@@ -65,12 +66,10 @@ export const handler = async (
 
   // ... check that required arguments are present, return HTTP 400 if not
 
-  const result = logic(args); // replace
-  // Check if logic function reported an error
-  return {
-    body: JSON.stringify(result),
-    // ... (other required API gateway parameters)
-  };
+  const result = await logic(args); // replace
+  const status = "error" in result;
+
+  return buildResponse(status, result);
 };
 
 export interface LogicArgs {
@@ -83,7 +82,12 @@ export interface LogicResult {
   //    the JSON response body
 }
 
-export function logic(args: LogicArgs): LogicResult {
+export interface LogicError {
+  // Return object if there is an error during logic. Usually just an error
+  error: string;
+}
+
+export async function logic(args: LogicArgs): Promise<LogicResult | LogicError> {
   // Do core logic ...
 }
 ```
@@ -236,6 +240,13 @@ const functionName = new nodejs.NodejsFunction(this, "FunctionName", {
 ```
 
 Note that if the function is part of the VPC, then it loses all outside internet access.
+
+The `createLambda` helper function in `ApiStack` can help with the construction of lambda
+functions. It takes in an object with the following props:
+- `id`: ID for the lambda function (should be in PascalCase)
+- `entry`: entry path of the lambda function
+- `dbAccess`: boolean flag that should be set to true if the lambda function needs
+  database access (see below)
 
 ### Database environment variables
 

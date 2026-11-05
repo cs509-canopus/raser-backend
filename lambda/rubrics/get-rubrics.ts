@@ -1,13 +1,6 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
-
-const resultParams: Partial<APIGatewayProxyResult> = {
-  isBase64Encoded: false,
-  headers: {
-    "Access-Control-Allow-Origin": "*",
-  },
-  multiValueHeaders: {},
-};
+import { buildResponse } from "../response-builder";
 
 export const handler = async (
   event: APIGatewayProxyEvent,
@@ -19,33 +12,16 @@ export const handler = async (
   const rubricID = event.pathParameters?.rubricID;
 
   if (!rubricID) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({
-        error: "Missing path parameter: rubricID",
-      }),
-      ...resultParams,
-    };
+    return buildResponse(400, { error: "Missing path parameter: rubricID" });
   }
 
   const result = await getRubric({ rubricID, userID });
 
-  let status;
-  let body;
-
   if ("error" in result) {
-    status = result.error.startsWith("Failed") ? 500 : 404;
-    body = JSON.stringify({ error: result.error });
-  } else {
-    status = 200;
-    body = JSON.stringify(result);
+    const status = result.error.startsWith("Failed") ? 500 : 404;
+    return buildResponse(status, { error: result.error });
   }
-
-  return {
-    statusCode: status,
-    body,
-    ...resultParams,
-  };
+  return buildResponse(200, result);
 };
 
 export interface GetRubricArgs {
