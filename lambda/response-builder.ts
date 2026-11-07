@@ -1,13 +1,16 @@
 import type { APIGatewayProxyResult } from "aws-lambda";
 
-/** 
+/**
  * Constructs a Lambda proxy response with status `statusCode` and body `body`
  * and all necessary response headers.
  * @param statusCode - HTTP status code
  * @param body - response object
  * @returns Lambda proxy response object
  */
-export function buildResponse(statusCode: number, body: Object): APIGatewayProxyResult {
+export function buildResponse(
+  statusCode: number,
+  body: Object,
+): APIGatewayProxyResult {
   return {
     statusCode,
     body: JSON.stringify(body),
@@ -18,4 +21,3 @@ export function buildResponse(statusCode: number, body: Object): APIGatewayProxy
     multiValueHeaders: {},
   };
 }
-
