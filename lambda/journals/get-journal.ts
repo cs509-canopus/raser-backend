@@ -13,7 +13,10 @@ export const handler = async (
 ): Promise<APIGatewayProxyResult> => {
   // Extract and validate path params
   const pathParams = event.pathParameters || {};
-  const { result: validatedPath, errors: pathErrors } = validate(pathSchema, pathParams);
+  const { result: validatedPath, errors: pathErrors } = validate(
+    pathSchema,
+    pathParams,
+  );
 
   // Return 400 early on input error
   if (pathErrors) {
@@ -27,11 +30,8 @@ export const handler = async (
   const result = await getJournal({ journalID: validatedPath.journalID });
 
   // Construct response object
-  if ("error" in result) {
-    return buildResponse(400, { error: result.error });
-  }
-
-  return buildResponse(200, result);
+  const status = "error" in result ? 400 : 200;
+  return buildResponse(status, result);
 };
 
 export interface GetJournalArgs {

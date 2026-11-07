@@ -2,69 +2,51 @@ import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
 import { DatabaseError } from "pg";
 import { buildResponse } from "../response-builder";
+import { validate } from "../validation";
+import * as z from "zod";
+
+const bodySchema = z
+  .object({
+    name: z.string().trim().nonempty(),
+    highQualityThreshold: z.int().nonnegative(),
+    lowQualityThreshold: z.int().nonnegative(),
+  })
+  .refine((data) => data.highQualityThreshold > data.lowQualityThreshold, {
+    path: ["highQualityThreshold"],
+    error: "highQualityThreshold must be greater than lowQualityThreshold",
+  });
 
 export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
-  const bodyArgs = JSON.parse(event.body ?? "{}");
-
-  // Make sure body has required parameters
-  let error = "";
-
-  if (!Object.hasOwn(bodyArgs, "name")) {
-    error = "Missing body parameter: name";
-  } else if (!Object.hasOwn(bodyArgs, "highQualityThreshold")) {
-    error = "Missing body parameter: highQualityThreshold";
-  } else if (!Object.hasOwn(bodyArgs, "lowQualityThreshold")) {
-    error = "Missing body parameter: lowQualityThreshold";
+  // Extract and validate body
+  let bodyArgs;
+  try {
+    bodyArgs = JSON.parse(event.body ?? "{}");
+  } catch {
+    return buildResponse(400, {
+      error: "Invalid JSON body",
+    });
   }
+  const { result: validatedBody, errors: bodyErrors } = validate(
+    bodySchema,
+    bodyArgs,
+  );
 
-  // Make sure name is a non-empty string
-  if (
-    error === "" &&
-    (typeof bodyArgs.name !== "string" || bodyArgs.name.trim() === "")
-  ) {
-    error = "name must be a non-empty string";
-  }
-
-  // Make sure thresholds are numbers
-  const highQualityThreshold = bodyArgs.highQualityThreshold;
-  const lowQualityThreshold = bodyArgs.lowQualityThreshold;
-
-  if (error === "") {
-    if (
-      typeof highQualityThreshold !== "number" ||
-      typeof lowQualityThreshold !== "number"
-    ) {
-      error = "highQualityThreshold and lowQualityThreshold must be numbers";
-    } else if (
-      !Number.isFinite(highQualityThreshold) ||
-      !Number.isFinite(lowQualityThreshold)
-    ) {
-      error = "Thresholds must be valid numbers";
-    } else if (
-      highQualityThreshold < 0 ||
-      highQualityThreshold > 100 ||
-      lowQualityThreshold < 0 ||
-      lowQualityThreshold > 100
-    ) {
-      error = "Thresholds must be between 0 and 100";
-    } else if (lowQualityThreshold >= highQualityThreshold) {
-      error = "lowQualityThreshold must be less than highQualityThreshold";
-    }
-  }
-
-  // Return 400 early if there is an error
-  if (error !== "") {
-    return buildResponse(400, { error });
+  // Return 400 early on input error
+  if (bodyErrors) {
+    return buildResponse(400, {
+      error: "Input error",
+      bodyErrors,
+    });
   }
 
   // Create rubric (Test user)
   const result = await createRubric({
-    title: bodyArgs.name.trim(),
+    title: validatedBody.name,
     designer: "ffffffff-ffff-ffff-ffff-ffffffffffff",
-    highQualityThreshold,
-    lowQualityThreshold,
+    highQualityThreshold: validatedBody.highQualityThreshold,
+    lowQualityThreshold: validatedBody.lowQualityThreshold,
   });
 
   // Construct response object
@@ -162,4 +144,3 @@ export async function createRubric(
     }
   }
 }
-

@@ -1,26 +1,33 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
 import { buildResponse } from "../response-builder";
+import { validate } from "../validation";
+import * as z from "zod";
+
+const pathSchema = z.object({
+  journalID: z.uuid(),
+});
 
 export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
-  // Extract path params
+  // Extract and validate path params
   const pathParams = event.pathParameters || {};
+  const { result: validatedPath, errors: pathErrors } = validate(
+    pathSchema,
+    pathParams,
+  );
 
-  // Make sure journalID is present in path parameter
-  let error = "";
-  if (!Object.hasOwn(pathParams, "journalID")) {
-    error = "Missing path parameter: journalID";
-  }
-
-  // Return 400 early if there is an error
-  if (error != "") {
-    return buildResponse(400, { error: error });
+  // Return 400 early on input error
+  if (pathErrors) {
+    return buildResponse(400, {
+      error: "Input error",
+      pathErrors,
+    });
   }
 
   // Withdraw the selected journal
-  const result = await withdrawJournal({ journalID: pathParams.journalID! });
+  const result = await withdrawJournal({ journalID: validatedPath.journalID });
 
   // Construct response object
   const status = "error" in result ? 400 : 200;

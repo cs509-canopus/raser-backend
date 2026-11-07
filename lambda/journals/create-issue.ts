@@ -2,50 +2,57 @@ import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
 import { DatabaseError } from "pg";
 import { buildResponse } from "../response-builder";
+import { validate } from "../validation";
+import * as z from "zod";
+
+const pathSchema = z.object({
+  journalID: z.uuid(),
+});
+
+const bodySchema = z.object({
+  volumeNumber: z.int().positive(),
+  issueNumber: z.int().positive(),
+});
 
 export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
-  const bodyArgs = JSON.parse(event.body ?? "{}");
+  // Extract and validate path params
   const pathParams = event.pathParameters ?? {};
+  const { result: validatedPath, errors: pathErrors } = validate(
+    pathSchema,
+    pathParams,
+  );
 
-  // Makes sure body has "volumeNumber" and "issueNumber" parameters
-  let error = "";
-  if (
-    !Object.hasOwn(bodyArgs, "volumeNumber") &&
-    !Object.hasOwn(bodyArgs, "issueNumber")
-  ) {
-    error = "Missing body parameters: volumeNumber and issueNumber";
-  } else if (!Object.hasOwn(bodyArgs, "volumeNumber")) {
-    error = "Missing body parameter: volumeNumber";
-  } else if (!Object.hasOwn(bodyArgs, "issueNumber")) {
-    error = "Missing body parameter: issueNumber";
+  // Extract and validate body
+  let bodyArgs;
+  try {
+    bodyArgs = JSON.parse(event.body ?? "{}");
+  } catch {
+    return buildResponse(400, {
+      error: "Invalid JSON body",
+    });
   }
+  const { result: validatedBody, errors: bodyErrors } = validate(
+    bodySchema,
+    bodyArgs,
+  );
 
-  // Make sure path has "journalID"
-  if (!Object.hasOwn(pathParams, "journalID")) {
-    error = "Missing path parameter: journalID";
-  }
-
-  // Make sure the body parameters are integers
-  let volumeNumber = bodyArgs.volumeNumber;
-  let issueNumber = bodyArgs.issueNumber;
-  if (!Number.isInteger(volumeNumber) && !Number.isInteger(issueNumber)) {
-    error = "volumeNumber and issueNumber must be integers";
-  } else if (!Number.isInteger(volumeNumber)) {
-    error = "volumeNumber must be an integer";
-  } else if (!Number.isInteger(issueNumber)) {
-    error = "issueNumber must be an integer";
-  }
-
-  // Return 400 early if there is an error
-  if (error != "") {
-    return buildResponse(400, { error: error });
+  // Return 400 early on input error
+  if (pathErrors || bodyErrors) {
+    return buildResponse(400, {
+      error: "Input error",
+      pathErrors,
+      bodyErrors,
+    });
   }
 
   // Create the issue
-  let journalID = pathParams.journalID!;
-  const result = await createIssue({ journalID, volumeNumber, issueNumber });
+  const result = await createIssue({
+    journalID: validatedPath.journalID,
+    volumeNumber: validatedBody.volumeNumber,
+    issueNumber: validatedBody.issueNumber,
+  });
 
   // Construct response object
   const status = "error" in result ? 400 : 201;

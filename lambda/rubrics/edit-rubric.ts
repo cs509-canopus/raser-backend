@@ -1,36 +1,87 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
 import { buildResponse } from "../response-builder";
+import { validate } from "../validation";
+import * as z from "zod";
+
+const pathSchema = z.object({
+  rubricID: z.uuid(),
+});
+
+const bodySchema = z
+  .object({
+    name: z.string().trim().nonempty().optional(),
+    highQualityThreshold: z.int().nonnegative().optional(),
+    lowQualityThreshold: z.int().nonnegative().optional(),
+  })
+  .refine(
+    (data) => {
+      // Make sure at least one of the values is provided
+      return Object.values(data).some((val) => val !== undefined);
+    },
+    {
+      path: [],
+      error: "At least one field must be provided",
+    },
+  )
+  .refine(
+    (data) => {
+      // If one of the fields is undefined, no check
+      if (
+        data.highQualityThreshold === undefined ||
+        data.lowQualityThreshold === undefined
+      ) {
+        return true;
+      }
+
+      // Both are present: ensure highQualityThreshold > lowQualityThreshold
+      return data.highQualityThreshold > data.lowQualityThreshold;
+    },
+    {
+      path: ["highQualityThreshold"],
+      error: "highQualityThreshold must be greater than lowQualityThreshold",
+    },
+  );
 
 export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
-  // Extract path params
+  // Extract and validate path params
   const pathParams = event.pathParameters || {};
+  const { result: validatedPath, errors: pathErrors } = validate(
+    pathSchema,
+    pathParams,
+  );
 
-  // Make sure rubricID is present in path parameter
-  let error = "";
-  if (!Object.hasOwn(pathParams, "rubricID")) {
-    error = "Missing path parameter: rubricID";
-  }
-
-  // Return 400 early if there is an error
-  if (error != "") {
-    return buildResponse(400, { error: error });
-  }
-
-  // Parse request body
-  let args: EditRubricArgs;
+  // Extract and validate body
+  let bodyArgs;
   try {
-    args = JSON.parse(event.body ?? "{}");
+    bodyArgs = JSON.parse(event.body ?? "{}");
   } catch {
-    return buildResponse(400, { error: "Invalid JSON request body" });
+    return buildResponse(400, {
+      error: "Invalid JSON body",
+    });
+  }
+  const { result: validatedBody, errors: bodyErrors } = validate(
+    bodySchema,
+    bodyArgs,
+  );
+
+  // Return 400 early on input error
+  if (pathErrors || bodyErrors) {
+    return buildResponse(400, {
+      error: "Input error",
+      pathErrors,
+      bodyErrors,
+    });
   }
 
   // Edit the selected rubric
   const result = await editRubric({
-    id: pathParams.rubricID!,
-    ...args,
+    id: validatedPath.rubricID,
+    title: validatedBody.name,
+    lowQualityThreshold: validatedBody.lowQualityThreshold,
+    highQualityThreshold: validatedBody.highQualityThreshold,
   });
 
   // Construct response object
@@ -94,21 +145,6 @@ export async function editRubric(
     // Validate title
     if (args.title !== undefined && args.title.trim() === "") {
       return { error: "title cannot be empty" };
-    }
-
-    // Validate threshold values
-    if (
-      args.lowQualityThreshold !== undefined &&
-      (typeof args.lowQualityThreshold !== "number" ||  Number.isFinite(args.lowQualityThreshold))
-    ) {
-      return { error: "lowQualityThreshold must be a valid number between 0 and 100" };
-    }
-
-    if (
-      args.highQualityThreshold !== undefined &&
-      (typeof args.highQualityThreshold !== "number" ||  Number.isFinite(args.highQualityThreshold))
-    ) {
-      return { error: "highQualityThreshold must be a valid number between 0 and 100" };
     }
 
     // Check that low quality threshold is lower than high quality threshold
@@ -192,4 +228,3 @@ export async function editRubric(
     return { error: "Failed to edit rubric" };
   }
 }
-
