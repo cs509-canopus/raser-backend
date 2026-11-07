@@ -13,11 +13,8 @@ export const handler = async (
   const result = await listJournals({ query });
 
   // Construct response object
-  if (result.error !== undefined) {
-    // Database error
-    return buildResponse(500, { error: result.error });
-  }
-  return buildResponse(200, { journals: result.journals });
+  const status = "error" in result ? 500 : 200;
+  return buildResponse(status, result);
 };
 
 export interface ListJournalsArgs {

@@ -23,6 +23,8 @@ full specification of the input object can be found
 [here](https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html#api-gateway-simple-proxy-for-lambda-input-format).
 The handler function must return an object following a particular format which can be found
 [here](https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html#api-gateway-simple-proxy-for-lambda-output-format).
+The `buildResponse` helper function (defined in `lambda/response-builder`) can be used to
+construct an object with all the required fields.
 
 You can import the `APIGatewayProxyEvent` and `APIGatewayProxyResult` types from
 `aws-lambda` and use them to specify the parameter and return types on your `handler`
@@ -39,38 +41,110 @@ export const handler = async (
 };
 ```
 
-### Code organization
-
 To make the lambda function easier to test, you should separate the event handling logic
-from the core business logic. The `handler` function should be responsible for extract URL
-and body parameters, validating the input, and bundling the output into the shape that the
-API gateway expects. In the middle, it should defer the core behavior to a dedicated
+from the core business logic. The `handler` function should be responsible for extracting
+URL and body parameters, validating the input, and bundling the output into the shape that
+the API gateway expects. In the middle, it should defer the core behavior to a dedicated
 function.
 
-**The following code can be used as a template for this pattern**. The `handler` function
-should parse the JSON `event.body` object (passed as a string), validates that all
-required fields are present, then call the `logic` function to perform the core operation
-(_you should rename `logic` to be a more descriptive name_). Additionally, the `LogicArgs`
-and `LogicResult` describe the input and output parameters for the function (_these should
-also be renamed accordingly_).
+### Input validation
+
+Input validation can be done using the [Zod](https://zod.dev/) library, which lets you
+define schemas for objects, which will be useful for validating JSON body parameters, path
+parameters, and query parameters.
+
+To start, define a [Zod schema](https://zod.dev/api) for each of your input objects. Zod
+allows you to specify parameter types, formats, bounds, whether they are optional, and
+even relationships between parameters (e.g., `highQualityThreshold` >
+`lowQualityThreshold`). Click the link to see all of Zod's powerful features.
+
+Example from `lambda/echo.ts`:
+
+```ts
+import * as z from "zod";
+
+// Schema for path parameters
+const pathSchema = z.object({
+  quantity: z.int().nonnegative(),
+});
+
+// Schema for body parameters
+const bodySchema = z.object({
+  text: z.string().nonempty(),
+});
+```
+
+Inside the `handler` function, use the `validate` helper function (defined in
+`lambda/validation.ts`) to validate the inputs. This function returns an object with two
+fields, `result` and `errors`, which can be unpacked and renamed using the following
+syntax:
+
+```ts
+// Inside handler function
+const pathParams = event.pathParameters || {};
+const { result: validatedPath, errors: pathErrors } = validate(pathSchema, pathParams);
+```
+
+A similar pattern can be used for body parameters. Note that `JSON.parse` should be
+wrapped in a try/catch since it throws an error if the JSON body is invalid.
+
+```ts
+// Inside handler function
+
+// Parse body
+let bodyArgs;
+try {
+  bodyArgs = JSON.parse(event.body ?? "{}");
+} catch {
+  return buildResponse(400, {
+    error: "Invalid JSON body",
+  });
+}
+
+// Validate body
+const { result: validatedBody, errors: bodyErrors } = validate(bodySchema, bodyArgs);
+```
+
+Only one of `result` or `errors` will be defined depending on whether the input is valid
+or not. You should rename the fields to avoid conflicts with other variables inside the
+function. The `errors` field is a list of error objects naming the problematic fields and
+an error message for each field. This list can be returned as-is from your lambda
+function. The `result` field is an object containing all the fields you defined in your
+Zod schema.
+
+After calling validate, you should check for errors and return HTTP 400 (bad request) if
+there are any. For our example, we return 400 if there are errors in the path or the body:
+
+```ts
+// Inside handler function
+if (pathErrors || bodyErrors) {
+  return buildResponse(400, {
+    error: "Input error",
+    pathErrors,
+    bodyErrors,
+  });
+}
+```
+
+After handling the error case, you can access the input fields from the validated `result`
+objects returned by `validate`.
+
+```ts
+// Inside handler function
+let text = validatedBody.text;
+let quantity = validatedPath.quantity;
+```
+
+### Logic code
+
+Code for business logic should be defined in a separate function. The following is
+template code for this pattern. We have a `logic` function to handle the business logic,
+and interfaces `LogicArgs`, `LogicResult`, and `LogicError` for the function (_you should
+rename the function and interfaces to be more descriptive_).
 
 ```ts
 // lambda/category/function-name.ts
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
-import { buildResponse } from "../response-builder";
-
-export const handler = async (
-  event: APIGatewayProxyEvent,
-): Promise<APIGatewayProxyResult> => {
-  const args = JSON.parse(event.body ?? "{}");
-
-  // ... check that required arguments are present, return HTTP 400 if not
-
-  const result = await logic(args); // replace
-  const status = "error" in result;
-
-  return buildResponse(status, result);
-};
 
 export interface LogicArgs {
   // ... Arguments for the core logic. These most likely correspond to parameters in
@@ -90,6 +164,17 @@ export interface LogicError {
 export async function logic(args: LogicArgs): Promise<LogicResult | LogicError> {
   // Do core logic ...
 }
+```
+
+In the `handler` function, you can call `logic` and return the result with the appropriate
+response code:
+
+```ts
+const result = logic({ /* logic args */ });
+
+// Return 400 on error or 200 on success
+const status = "error" in result ? 400 : 200;
+return buildResponse(status, result);
 ```
 
 ### Writing unit cases

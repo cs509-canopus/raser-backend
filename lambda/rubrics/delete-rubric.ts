@@ -1,28 +1,34 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { withTransaction } from "../db";
 import { buildResponse } from "../response-builder";
+import { validate } from "../validation";
+import * as z from "zod";
+
+const pathSchema = z.object({
+  rubricID: z.uuid(),
+});
 
 export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
-  
   // Extract path params
   const pathParams = event.pathParameters || {};
+  const { result: validatedPath, errors: pathErrors } = validate(
+    pathSchema,
+    pathParams,
+  );
 
-  // Make sure rubricID is present in path parameter
-  let error = "";
-  if (!Object.hasOwn(pathParams, "rubricID")) {
-    error = "Missing path parameter: rubricID";
-  }
-
-  // Return 400 early if there is an error
-  if (error != "") {
-    return buildResponse(400, { error: error });
+  // Return 400 early on input error
+  if (pathErrors) {
+    return buildResponse(400, {
+      error: "Input error",
+      pathErrors,
+    });
   }
 
   // Delete the selected rubric
   const result = await deleteRubric({
-    rubricID: pathParams.rubricID!,
+    rubricID: validatedPath.rubricID,
   });
 
   // Construct response object

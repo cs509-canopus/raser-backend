@@ -1,29 +1,52 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { buildResponse } from "./response-builder";
+import { validate } from "./validation";
+import * as z from "zod";
+
+const pathSchema = z.object({
+  quantity: z.int().nonnegative(),
+});
+
+const bodySchema = z.object({
+  text: z.string().nonempty(),
+});
 
 export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
-  const bodyArgs = JSON.parse(event.body ?? "{}");
+  // Extract and validate path params
   const pathParams = event.pathParameters || {};
-  let error = "";
+  const { result: validatedPath, errors: pathErrors } = validate(
+    pathSchema,
+    pathParams,
+  );
 
-  // Makes sure path has "quantity" and body has the "text" parameter
-  if (!Object.hasOwn(pathParams, "quantity")) {
-    error = "Missing path parameter: quantity";
+  // Extract and validate body
+  let bodyArgs;
+  try {
+    bodyArgs = JSON.parse(event.body ?? "{}");
+  } catch {
+    return buildResponse(400, {
+      error: "Invalid JSON body",
+    });
   }
-  if (!Object.hasOwn(bodyArgs, "text")) {
-    error = "Missing body parameter: text";
-  }
+  const { result: validatedBody, errors: bodyErrors } = validate(
+    bodySchema,
+    bodyArgs,
+  );
 
-  // Return 400 early if there is an error
-  if (error != "") {
-    return buildResponse(400, { error: error });
+  // Return 400 early on input error
+  if (pathErrors || bodyErrors) {
+    return buildResponse(400, {
+      error: "Input error",
+      pathErrors,
+      bodyErrors,
+    });
   }
 
   // Extract paramters
-  let text = bodyArgs.text;
-  let quantity = Number(pathParams.quantity!);
+  let text = validatedBody.text;
+  let quantity = validatedPath.quantity;
 
   // Compute result. If result contains error key, return 400
   const result = echo({ text, quantity });

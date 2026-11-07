@@ -2,12 +2,16 @@ import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
 import { buildResponse } from "../response-builder";
 
+// Test user ID
+// TODO: replace with signed-in user ID
+const userID = "ffffffff-ffff-ffff-ffff-ffffffffffff";
+
 export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
-  // Test user ID
-  const userID = "ffffffff-ffff-ffff-ffff-ffffffffffff";
+  // TODO: add filtering using query parameters
 
+  // Get all rubrics
   const result = await listRubrics({ userID });
 
   if ("error" in result) {
