@@ -24,7 +24,7 @@ full specification of the input object can be found
 The handler function must return an object following a particular format which can be found
 [here](https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html#api-gateway-simple-proxy-for-lambda-output-format).
 The `buildResponse` helper function (defined in `lambda/response-builder`) can be used to
-construct an object with all the required headers.
+construct an object with all the required fields.
 
 You can import the `APIGatewayProxyEvent` and `APIGatewayProxyResult` types from
 `aws-lambda` and use them to specify the parameter and return types on your `handler`
@@ -42,9 +42,9 @@ export const handler = async (
 ```
 
 To make the lambda function easier to test, you should separate the event handling logic
-from the core business logic. The `handler` function should be responsible for extract URL
-and body parameters, validating the input, and bundling the output into the shape that the
-API gateway expects. In the middle, it should defer the core behavior to a dedicated
+from the core business logic. The `handler` function should be responsible for extracting
+URL and body parameters, validating the input, and bundling the output into the shape that
+the API gateway expects. In the middle, it should defer the core behavior to a dedicated
 function.
 
 ### Input validation
@@ -56,9 +56,9 @@ parameters, and query parameters.
 To start, define a [Zod schema](https://zod.dev/api) for each of your input objects. Zod
 allows you to specify parameter types, formats, bounds, whether they are optional, and
 even relationships between parameters (e.g., `highQualityThreshold` >
-`lowQualityThreshold`). 
+`lowQualityThreshold`). Click the link to see all of Zod's powerful features.
 
-Example from `lambda/echo.ts`
+Example from `lambda/echo.ts`:
 
 ```ts
 import * as z from "zod";
@@ -89,9 +89,10 @@ A similar pattern can be used for body parameters. Note that `JSON.parse` should
 wrapped in a try/catch since it throws an error if the JSON body is invalid.
 
 ```ts
-let bodyArgs;
+// Inside handler function
 
 // Parse body
+let bodyArgs;
 try {
   bodyArgs = JSON.parse(event.body ?? "{}");
 } catch {
@@ -115,6 +116,7 @@ After calling validate, you should check for errors and return HTTP 400 (bad req
 there are any. For our example, we return 400 if there are errors in the path or the body:
 
 ```ts
+// Inside handler function
 if (pathErrors || bodyErrors) {
   return buildResponse(400, {
     error: "Input error",
@@ -128,6 +130,7 @@ After handling the error case, you can access the input fields from the validate
 objects returned by `validate`.
 
 ```ts
+// Inside handler function
 let text = validatedBody.text;
 let quantity = validatedPath.quantity;
 ```
