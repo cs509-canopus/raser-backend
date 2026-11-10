@@ -179,6 +179,10 @@ return buildResponse(status, result);
 
 ### Writing unit cases
 
+> [!NOTE]
+> See the [database testing](./database-testing.md) guide for lambda functions that
+> involve connecting to the database (which is probably most of them).
+
 Two categories of test cases:
 
 - Logic test: tests the core logic function (i.e., the `logic` function)
@@ -207,10 +211,6 @@ describeCases("logic", logic, [
 Be sure to write several test cases that cover all the edge cases. If your logic function
 talks to the database, be aware that the tests will timeout since you cannot connect to
 the database unless you are inside the VPC.
-
-> [!CAUTION]
-> For now, do not write tests for database functions. We can try to figure out a way to
-> test these functions later.
 
 #### Handler tests
 

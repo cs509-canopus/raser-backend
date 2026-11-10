@@ -16,6 +16,7 @@ export const IDS = {
   editor2: "11111111-0000-4000-8000-0000000000e2",
   designer1: "11111111-0000-4000-8000-0000000000d1",
   designer2: "11111111-0000-4000-8000-0000000000d2",
+  userf: "ffffffff-ffff-ffff-ffff-ffffffffffff",
 
   // Journals: journal1 has all optional fields set, journal2 has website/cover NULL
   journal1: "22222222-0000-4000-8000-000000000001",
