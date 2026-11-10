@@ -73,13 +73,42 @@ export async function withdrawJournal(
       };
     }
 
-    // Delete the journal as long as it doesn't have any issues
+    // Delete any reviews on any papers in this journal
+    await query(
+      `DELETE FROM reviews
+       WHERE id IN (
+         SELECT reviews.id
+         FROM reviews
+         JOIN papers ON reviews.paper_id = papers.id
+         JOIN issues ON papers.issue_id = issues.id
+         WHERE issues.journal_id = $1::uuid
+       )`,
+      [args.journalID],
+    );
+
+    // Delete any papers in this journal
+    await query(
+      `DELETE FROM papers
+       WHERE id IN (
+         SELECT papers.id
+         FROM papers
+         JOIN issues ON papers.issue_id = issues.id
+         WHERE issues.journal_id = $1::uuid
+       )`,
+      [args.journalID],
+    );
+
+    // Delete any journals in this issue
+    await query(
+      `DELETE FROM issues
+       WHERE journal_id = $1::uuid`,
+      [args.journalID],
+    );
+
+    // Delete the journal 
     const deleteResult = await query<JournalsSchema>(
       `DELETE FROM journals 
        WHERE id = $1::uuid
-       AND NOT EXISTS (
-         SELECT 1 FROM issues 
-         WHERE issues.journal_id = $1::uuid)
        RETURNING *`,
       [args.journalID],
     );
@@ -87,7 +116,7 @@ export async function withdrawJournal(
     // Return error if the chosen journal has issues
     if (deleteResult.rowCount === 0) {
       return {
-        error: `Cannot delete journal with ID ${args.journalID} because it has issues`,
+        error: `Cannot delete journal with ID ${args.journalID}`,
       };
     }
 
