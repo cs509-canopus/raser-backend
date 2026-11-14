@@ -1,0 +1,10 @@
+{
+  "statusCode": 200,
+  "headers": {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*"
+  },
+  "multiValueHeaders": {},
+  "body": "{\"deprecated\": true, \"publishedBefore\": \"2027-01-01T00:00:00.000Z\", \"publishedAfter\": \"2025-01-01T00:00:00.000Z\", \"rubrics\": []}", 
+  "isBase64Encoded": false
+}
