@@ -160,6 +160,6 @@ export async function deprecateRubric(
     });
   } catch (err) {
     console.error("deprecateRubric failed", err);
-    return { error: `Failed to deprecate rubric: ${err}` };
+    return { error: "Failed to deprecate rubric" };
   }
 }
