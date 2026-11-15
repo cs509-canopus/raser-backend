@@ -123,7 +123,7 @@ export async function listRubrics(
        FROM rubrics r
        LEFT JOIN rubric_questions rq
          ON rq.rubric_id = r.id
-       WHERE r.designer_id = $1::uuid
+       WHERE (r.designer_id = $1::uuid OR r.publication_date IS NOT NULL)
          AND ($2::timestamp IS NULL OR r.publication_date > $2)
          AND ($3::timestamp IS NULL OR r.publication_date < $3)
          AND ($4::boolean IS NULL OR (r.replaced_by_id IS NOT NULL) = $4)

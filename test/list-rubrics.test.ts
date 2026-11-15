@@ -4,9 +4,33 @@ import { describeWithDatabase, IDS } from "./db/describe-with-database";
 import { readFileSync } from "fs";
 import { join } from "path";
 
+const UNPUBLISHED_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+
+/**
+ * Inserts an unpublished rubric owned by designer1 and returns its ID.
+ */
+async function createUnpublishedRubric(): Promise<string> {
+  const { rows } = await query(
+    `INSERT INTO rubrics (id, designer_id, title, high_score_threshold, low_score_threshold)
+     VALUES ($1::uuid, $2::uuid, 'Unpublished Rubric', 8, 4) RETURNING *`,
+    [UNPUBLISHED_ID, IDS.designer1],
+  );
+  expect(rows).toHaveLength(1);
+  return UNPUBLISHED_ID;
+}
+
+/**
+ * Lists the rubrics visible to `userID` (no filters) and returns their IDs, sorted
+ */
+async function listRubricIDs(userID: string): Promise<string[]> {
+  const result = await listRubrics({ userID });
+  if ("error" in result) throw new Error(result.error);
+  return result.rubrics.map((rubric) => rubric.id).sort();
+}
+
 describeWithDatabase("listRubrics", () => {
-  it("returns all rubrics owned by designer1", async () => {
-    // Get all rubrics owned by designer1
+  it("returns all rubrics visible to designer1", async () => {
+    // Get all rubrics visible to designer1
     const result = await listRubrics({
       userID: IDS.designer1,
     });
@@ -19,11 +43,14 @@ describeWithDatabase("listRubrics", () => {
 
     const rubrics = result.rubrics;
 
-    // Only 1 rubric is owned by designer1
-    expect(rubrics).toHaveLength(1);
+    // designer1 owns rubric1 and can see rubric2 (published by designer2)
+    expect(rubrics).toHaveLength(2);
+    expect(rubrics.map((rubric) => rubric.id).sort()).toEqual(
+      [IDS.rubric1, IDS.rubric2].sort(),
+    );
 
     // Check against fields of rubric1
-    const row = rubrics[0];
+    const row = rubrics.find((rubric) => rubric.id === IDS.rubric1)!;
     expect(row.id).toBe(IDS.rubric1);
     expect(row.title).toBe("In Vitro Plant Culture Rubric");
     expect(row.highQualityThreshold).toBe(40);
@@ -88,7 +115,7 @@ describeWithDatabase("listRubrics", () => {
     expect(rubrics).toHaveLength(0);
   });
 
-  it("returns a non-deprecated rubric published between 2025-01-01 and 2027-01-01 owned by designer2", async () => {
+  it("returns non-deprecated rubrics published between 2025-01-01 and 2027-01-01 visible to designer2", async () => {
     const publishedAfter = new Date("2025-01-01");
     const publishedBefore = new Date("2027-01-01");
 
@@ -109,8 +136,55 @@ describeWithDatabase("listRubrics", () => {
 
     const rubrics = result.rubrics;
 
-    // Should be 1 rubric (rubric2)
-    expect(rubrics).toHaveLength(1);
+    // Should be 2 rubrics (rubric1 and rubric2, both published on 2026-01-10)
+    expect(rubrics).toHaveLength(2);
+    expect(rubrics.map((rubric) => rubric.id).sort()).toEqual(
+      [IDS.rubric1, IDS.rubric2].sort(),
+    );
+  });
+
+  it("returns published rubrics owned by other designers", async () => {
+    // designer1 owns rubric1, designer2 owns rubric2, both are published
+    const ids = await listRubricIDs(IDS.designer1);
+    expect(ids).toEqual([IDS.rubric1, IDS.rubric2].sort());
+  });
+
+  it("returns unpublished rubrics owned by yourself", async () => {
+    const unpublishedID = await createUnpublishedRubric();
+
+    // designer1 should see their own unpublished rubric as well as both published ones
+    const ids = await listRubricIDs(IDS.designer1);
+    expect(ids).toEqual([IDS.rubric1, IDS.rubric2, unpublishedID].sort());
+  });
+
+  it("does not return unpublished rubrics owned by other designers", async () => {
+    const unpublishedID = await createUnpublishedRubric();
+
+    // designer2 should only see the published rubrics
+    const ids = await listRubricIDs(IDS.designer2);
+    expect(ids).not.toContain(unpublishedID);
+    expect(ids).toEqual([IDS.rubric1, IDS.rubric2].sort());
+  });
+
+  it("returns only published rubrics to a user who owns no rubrics", async () => {
+    const unpublishedID = await createUnpublishedRubric();
+
+    // userf owns no rubrics, so should only see the published ones
+    const ids = await listRubricIDs(IDS.userf);
+    expect(ids).not.toContain(unpublishedID);
+    expect(ids).toEqual([IDS.rubric1, IDS.rubric2].sort());
+  });
+
+  it("returns deprecated published rubrics owned by other designers", async () => {
+    // Deprecate rubric1 (owned by designer1) directly in the database
+    await query(
+      "UPDATE rubrics SET replaced_by_id = $1::uuid WHERE id = $2::uuid",
+      [IDS.rubric2, IDS.rubric1],
+    );
+
+    // designer2 should still see rubric1, since it is published
+    const ids = await listRubricIDs(IDS.designer2);
+    expect(ids).toEqual([IDS.rubric1, IDS.rubric2].sort());
   });
 
   it("lists all rubrics owned by designer1 with the handler", async () => {
