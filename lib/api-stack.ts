@@ -312,6 +312,19 @@ export class ApiStack extends cdk.Stack {
       "POST",
       new apigateway.LambdaIntegration(deprecateRubricFunction),
     );
+
+    const duplicateRubricFunction = this.createLambda({
+      id: "DuplicateRubric",
+      entry: path.join(__dirname, "..", "lambda", "rubrics", "duplicate-rubric.ts"),
+      dbAccess: true,
+    });
+
+    // POST /rubrics/{rubricID}/duplicate
+    const rubricsRubricIDDuplicate = rubricsRubricIDResource.addResource("duplicate")
+    rubricsRubricIDDuplicate.addMethod(
+      "POST",
+      new apigateway.LambdaIntegration(duplicateRubricFunction),
+    );
   }
 
   private createLambda({
