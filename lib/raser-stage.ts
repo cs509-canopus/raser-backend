@@ -15,7 +15,11 @@ export class RaserStage extends cdk.Stage {
     super(scope, id, props);
 
     // Add stacks here that should be cloned for every stage
-    const authenticationStack = new AuthenticationStack(this, "AuthenticationStack", { env });
+    const authenticationStack = new AuthenticationStack(
+      this,
+      "AuthenticationStack",
+      { env },
+    );
     new ApiStack(this, "ApiStack", { env });
     new SiteStack(this, "SiteStack", {});
   }

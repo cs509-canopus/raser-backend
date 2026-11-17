@@ -26,7 +26,6 @@ export class AuthenticationStack extends cdk.Stack {
       authFlows: { userSrp: true, userPassword: true },
     });
 
-    
     new cdk.CfnOutput(this, "UserPoolId", { value: this.userPool.userPoolId });
     new cdk.CfnOutput(this, "UserPoolClientId", {
       value: this.userPoolClient.userPoolClientId,
