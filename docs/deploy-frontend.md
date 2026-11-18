@@ -31,14 +31,25 @@ DistributionId = <distribution-id>
 **Navigate to the frontend repo, then follow these steps**.
 
 Before starting, make sure to set the `NEXT_PUBLIC_API_URL` environment variable to your
-API Gateway URL. The easiest way to do this is to create a `.env.local` file:
+API Gateway URL, and the two user pool variables to the outputs of your stage's
+`AuthenticationStack`. The easiest way to do this is to create a `.env.local` file:
 
 ```
 NEXT_PUBLIC_API_URL="https://<some-id>.execute-api.us-east-1.amazonaws.com/api/"
+NEXT_PUBLIC_USER_POOL_ID="<UserPoolId output>"
+NEXT_PUBLIC_USER_POOL_CLIENT_ID="<UserPoolClientId output>"
 ```
 
-**Use the URL corresponding to your stage.** This is the URL that the frontend will send
-API requests to using the axios `backend` instance (see `src/axios-client.ts`).
+**Use the values corresponding to your stage.** The API URL is where the frontend will
+send API requests to using the axios `backend` instance (see `src/axios-client.ts`). The
+user pool values are used for logging in. They have to come from the same stage as the
+API, since the API only accepts tokens from its own stage's user pool. You can print
+them with:
+
+```sh
+aws cloudformation describe-stacks --stack-name <your-username>-AuthenticationStack \
+  --query "Stacks[0].Outputs"
+```
 
 Next, build the site:
 
