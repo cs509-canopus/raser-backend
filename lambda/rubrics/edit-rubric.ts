@@ -1,5 +1,6 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
+import { getUserID } from "../auth";
 import { buildResponse } from "../response-builder";
 import { validate } from "../validation";
 import * as z from "zod";
@@ -76,8 +77,15 @@ export const handler = async (
     });
   }
 
+  // Get ID of logged-in user
+  const userID = getUserID(event);
+  if (!userID) {
+    return buildResponse(401, { error: "Unauthorized" });
+  }
+
   // Edit the selected rubric
   const result = await editRubric({
+    userID,
     id: validatedPath.rubricID,
     title: validatedBody.name,
     lowQualityThreshold: validatedBody.lowQualityThreshold,
@@ -99,6 +107,7 @@ export interface EditRubricArgs {
 }
 
 export interface EditRubricParams extends EditRubricArgs {
+  userID: string;
   id: string;
 }
 
@@ -121,7 +130,8 @@ interface RubricsSchema {
 }
 
 /**
- * Updates an existing rubric.
+ * Updates an existing rubric owned by the user.
+ * @prop userID - ID of the logged-in user
  * @prop id - ID of the rubric to update
  * @prop title - Updated rubric name
  * @prop lowQualityThreshold - Updated low quality threshold
@@ -162,11 +172,12 @@ export async function editRubric(
     const existingResult = await query<RubricsSchema>(
       `SELECT low_score_threshold, high_score_threshold
       FROM rubrics
-      WHERE id = $1::uuid`,
-      [args.id],
+      WHERE id = $1::uuid
+        AND designer_id = $2`,
+      [args.id, args.userID],
     );
 
-    // Return error if rubric does not exist
+    // Return error if rubric does not exist under this user
     if (existingResult.rowCount === 0) {
       return {
         error: `Could not find rubric with ID ${args.id}`,
@@ -197,6 +208,7 @@ export async function editRubric(
          low_score_threshold = COALESCE($3, low_score_threshold),
          high_score_threshold = COALESCE($4, high_score_threshold)
        WHERE id = $1::uuid
+         AND designer_id = $5
        RETURNING id, title, low_score_threshold,
                  high_score_threshold`,
       [
@@ -204,6 +216,7 @@ export async function editRubric(
         args.title?.trim() ?? null,
         args.lowQualityThreshold ?? null,
         args.highQualityThreshold ?? null,
+        args.userID,
       ],
     );
 

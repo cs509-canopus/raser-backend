@@ -148,6 +148,18 @@ describeWithDatabase("duplicateRubric", () => {
     await expectDuplicate(IDS.rubric1, result.rubricID, IDS.designer2);
   });
 
+  it("lets a brand-new user duplicate a published rubric", async () => {
+    // The user has no rows in the database yet, so they have to be created first
+    const newUserID = "77777777-0000-4000-8000-000000000001";
+    const result = await duplicateRubric({
+      userID: newUserID,
+      rubricID: IDS.rubric1,
+    });
+    if ("error" in result) throw new Error(result.error);
+
+    await expectDuplicate(IDS.rubric1, result.rubricID, newUserID);
+  });
+
   it("fails on unpublished rubric owned by another designer", async () => {
     // Create an unpublished rubric owned by designer1
     const unpublishedID = await createTestRubric({

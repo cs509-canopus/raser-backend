@@ -8,6 +8,7 @@ jest.mock("../lambda/db", () => ({
 const mockQuery = jest.mocked(query);
 
 describe("editRubric", () => {
+  const userID = "22222222-2222-2222-2222-222222222222";
   const mockRubric = {
     id: "11111111-1111-1111-1111-111111111111",
     title: "Updated Test Rubric",
@@ -26,6 +27,7 @@ describe("editRubric", () => {
     } as never);
 
     const result = await editRubric({
+      userID,
       id: "11111111-1111-1111-1111-111111111111",
       title: "Updated Test Rubric",
       lowQualityThreshold: 60,
@@ -53,6 +55,7 @@ describe("editRubric", () => {
     } as never);
 
     const result = await editRubric({
+      userID,
       id: "11111111-1111-1111-1111-111111111111",
       title: "Updated Test Rubric",
     });
@@ -77,6 +80,7 @@ describe("editRubric", () => {
     } as never);
 
     const result = await editRubric({
+      userID,
       id: "11111111-1111-1111-1111-111111111111",
       lowQualityThreshold: 50,
     });
@@ -101,6 +105,7 @@ describe("editRubric", () => {
     } as never);
 
     const result = await editRubric({
+      userID,
       id: "11111111-1111-1111-1111-111111111111",
       highQualityThreshold: 95,
     });
@@ -119,7 +124,8 @@ describe("editRubric", () => {
   });
 
   it("should return an error if no fields are provided", async () => {
-    const result = await editRubric({ id: "11111111-1111-1111-1111-111111111111" });
+    const result = await editRubric({
+      userID, id: "11111111-1111-1111-1111-111111111111" });
 
     expect(result).toEqual({
       error: "No fields provided to update",
@@ -130,6 +136,7 @@ describe("editRubric", () => {
 
   it("should return an error if the title of the rubric is empty", async () => {
     const result = await editRubric({
+      userID,
       id: "11111111-1111-1111-1111-111111111111",
       title: "   ",
     });
@@ -143,6 +150,7 @@ describe("editRubric", () => {
 
   it("should return an error if the low quality threshold is below 0", async () => {
     const result = await editRubric({
+      userID,
       id: "11111111-1111-1111-1111-111111111111",
       lowQualityThreshold: -1,
     });
@@ -156,6 +164,7 @@ describe("editRubric", () => {
 
   it("should return an error if the low quality threshold is above 100", async () => {
     const result = await editRubric({
+      userID,
       id: "11111111-1111-1111-1111-111111111111",
       lowQualityThreshold: 101,
     });
@@ -169,6 +178,7 @@ describe("editRubric", () => {
 
   it("should return an error if the high quality threshold is below 0", async () => {
     const result = await editRubric({
+      userID,
       id: "11111111-1111-1111-1111-111111111111",
       highQualityThreshold: -1,
     });
@@ -182,6 +192,7 @@ describe("editRubric", () => {
 
   it("should return an error if the high quality threshold is above 100", async () => {
     const result = await editRubric({
+      userID,
       id: "11111111-1111-1111-1111-111111111111",
       highQualityThreshold: 101,
     });
@@ -195,6 +206,7 @@ describe("editRubric", () => {
 
   it("should return an error if the low threshold equals the high threshold", async () => {
     const result = await editRubric({
+      userID,
       id: "11111111-1111-1111-1111-111111111111",
       lowQualityThreshold: 80,
       highQualityThreshold: 80,
@@ -209,6 +221,7 @@ describe("editRubric", () => {
 
   it("should return an error if the low threshold is greater than the high threshold", async () => {
     const result = await editRubric({
+      userID,
       id: "11111111-1111-1111-1111-111111111111",
       lowQualityThreshold: 90,
       highQualityThreshold: 80,
@@ -228,6 +241,7 @@ describe("editRubric", () => {
     } as never);
 
     const result = await editRubric({
+      userID,
       id: "11111111-1111-1111-1111-111111111111",
       title: "Updated Test Rubric",
     });
@@ -243,6 +257,7 @@ describe("editRubric", () => {
     );
 
     const result = await editRubric({
+      userID,
       id: "11111111-1111-1111-1111-111111111111",
       title: "Updated Test Rubric",
     });

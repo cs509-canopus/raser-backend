@@ -1,5 +1,6 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
+import { getUserID } from "../auth";
 import { buildResponse } from "../response-builder";
 import { validate } from "../validation";
 import * as z from "zod";
@@ -7,10 +8,6 @@ import * as z from "zod";
 const pathSchema = z.object({
   rubricID: z.uuid(),
 });
-
-// Test user ID
-// TODO: replace with signed-in user ID
-const userID = "ffffffff-ffff-ffff-ffff-ffffffffffff";
 
 export const handler = async (
   event: APIGatewayProxyEvent,
@@ -28,6 +25,12 @@ export const handler = async (
       error: "Input error",
       pathErrors,
     });
+  }
+
+  // Get ID of logged-in user
+  const userID = getUserID(event);
+  if (!userID) {
+    return buildResponse(401, { error: "Unauthorized" });
   }
 
   // Get the selected rubric
@@ -92,7 +95,7 @@ export async function getRubric(
   args: GetRubricArgs,
 ): Promise<GetRubricResult | GetRubricError> {
   try {
-    // Select rubric only if it belongs to the authenticated user
+    // Select rubric only if it is published or belongs to the authenticated user
     const rubricResult = await query<RubricsSchema>(
       `SELECT
          id,
@@ -106,11 +109,11 @@ export async function getRubric(
          created_at
        FROM rubrics
        WHERE id = $1::uuid
-         AND designer_id = $2::uuid`,
+         AND (publication_date IS NOT NULL OR designer_id = $2)`,
       [args.rubricID, args.userID],
     );
 
-    // Return error if rubric does not exist or does not belong to user
+    // Return error if rubric does not exist or is unpublished and does not belong to user
     if (rubricResult.rowCount === 0) {
       return {
         error: `Could not get rubric with ID ${args.rubricID}`,

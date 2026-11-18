@@ -1,7 +1,9 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
-import { query } from "../db";
+import { withTransaction } from "../db";
 import { DatabaseError } from "pg";
+import { getUserID } from "../auth";
 import { buildResponse } from "../response-builder";
+import { ensureRubricDesigner } from "../users";
 import { validate } from "../validation";
 import * as z from "zod";
 
@@ -41,10 +43,16 @@ export const handler = async (
     });
   }
 
-  // Create rubric (Test user)
+  // Get ID of logged-in user
+  const userID = getUserID(event);
+  if (!userID) {
+    return buildResponse(401, { error: "Unauthorized" });
+  }
+
+  // Create rubric owned by the logged-in user
   const result = await createRubric({
     title: validatedBody.name,
-    designer: "ffffffff-ffff-ffff-ffff-ffffffffffff",
+    designer: userID,
     highQualityThreshold: validatedBody.highQualityThreshold,
     lowQualityThreshold: validatedBody.lowQualityThreshold,
   });
@@ -91,22 +99,27 @@ export async function createRubric(
 ): Promise<CreateRubricResult | CreateRubricError> {
   try {
     // Create rubric entry and return the created row
-    const createRubricResult = await query<RubricsSchema>(
-      `INSERT INTO rubrics (
-         title,
-         designer_id,
-         high_score_threshold,
-         low_score_threshold
-       )
-       VALUES ($1, $2, $3::integer, $4::integer)
-       RETURNING *`,
-      [
-        args.title,
-        args.designer,
-        args.highQualityThreshold,
-        args.lowQualityThreshold,
-      ],
-    );
+    const createRubricResult = await withTransaction(async (client) => {
+      // A new user has no database rows until they create something
+      await ensureRubricDesigner(client, args.designer);
+
+      return client.query<RubricsSchema>(
+        `INSERT INTO rubrics (
+           title,
+           designer_id,
+           high_score_threshold,
+           low_score_threshold
+         )
+         VALUES ($1, $2, $3::integer, $4::integer)
+         RETURNING *`,
+        [
+          args.title,
+          args.designer,
+          args.highQualityThreshold,
+          args.lowQualityThreshold,
+        ],
+      );
+    });
 
     // Return error if rubric was not created
     if (createRubricResult.rowCount === 0) {

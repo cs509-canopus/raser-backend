@@ -1,5 +1,6 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { withTransaction } from "../db";
+import { getUserID } from "../auth";
 import { buildResponse } from "../response-builder";
 import { validate } from "../validation";
 import * as z from "zod";
@@ -26,8 +27,15 @@ export const handler = async (
     });
   }
 
+  // Get ID of logged-in user
+  const userID = getUserID(event);
+  if (!userID) {
+    return buildResponse(401, { error: "Unauthorized" });
+  }
+
   // Delete the selected rubric
   const result = await deleteRubric({
+    userID,
     rubricID: validatedPath.rubricID,
   });
 
@@ -40,6 +48,7 @@ export const handler = async (
 };
 
 export interface DeleteRubricArgs {
+  userID: string;
   rubricID: string;
 }
 
@@ -52,7 +61,8 @@ export interface DeleteRubricError {
 }
 
 /**
- * Deletes a rubric and all its associated rubric questions.
+ * Deletes a rubric owned by the user and all its associated rubric questions.
+ * @prop userID - ID of the logged-in user
  * @prop rubricID - ID of the rubric to delete
  * @returns deleted rubric ID, or error if deletion fails
  */
@@ -61,15 +71,16 @@ export async function deleteRubric(
 ): Promise<DeleteRubricResult | DeleteRubricError> {
   try {
     return await withTransaction(async (client) => {
-      // Check whether the rubric exists
+      // Check whether the rubric exists under this user
       const rubricResult = await client.query(
         `SELECT id FROM rubrics
          WHERE id = $1::uuid
+           AND designer_id = $2
          FOR UPDATE`,
-        [args.rubricID],
+        [args.rubricID, args.userID],
       );
 
-      // Return error if the chosen rubric does not exist
+      // Return error if the chosen rubric does not exist under this user
       if (rubricResult.rowCount === 0) {
         return {
           error: `Could not find rubric with ID ${args.rubricID}`,

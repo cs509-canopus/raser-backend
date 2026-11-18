@@ -1,6 +1,8 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query, withTransaction } from "../db";
+import { getUserID } from "../auth";
 import { buildResponse } from "../response-builder";
+import { ensureRubricDesigner } from "../users";
 import { validate } from "../validation";
 import * as z from "zod";
 
@@ -26,8 +28,10 @@ export const handler = async (
     });
   }
   // Get ID of logged-in user
-  const testID = "ffffffff-ffff-ffff-ffff-ffffffffffff";
-  const userID = event.requestContext.authorizer?.claims?.sub ?? testID;
+  const userID = getUserID(event);
+  if (!userID) {
+    return buildResponse(401, { error: "Unauthorized" });
+  }
 
   // Delete the selected rubric
   const result = await duplicateRubric({
@@ -77,7 +81,7 @@ export async function duplicateRubric(
        WHERE id = $1::uuid
        AND (
          publication_date IS NOT NULL
-         OR designer_id = $2::uuid
+         OR designer_id = $2
        )`,
       [args.rubricID, args.userID],
     );
@@ -90,10 +94,13 @@ export async function duplicateRubric(
     }
 
     return await withTransaction(async (client) => {
+      // A new user has no database rows until they create something
+      await ensureRubricDesigner(client, args.userID);
+
       // Create a new unpublished rubric under this user with same values as the specified rubric
       const insertRubricResult = await client.query(
         `INSERT INTO rubrics (designer_id, ${RUBRIC_FIELDS_TO_DUPLICATE})
-         SELECT $1::uuid, ${RUBRIC_FIELDS_TO_DUPLICATE} FROM rubrics
+         SELECT $1, ${RUBRIC_FIELDS_TO_DUPLICATE} FROM rubrics
          WHERE id = $2::uuid
          RETURNING id`,
         [args.userID, args.rubricID],
