@@ -1,5 +1,4 @@
-// Users are managed by Cognito, so a user that just signed up has no rows in the database
-// yet. These helpers create the rows the first time they are needed.
+// Lazily creates a user's rows the first time they're needed (Cognito has no row for them yet).
 import type { PoolClient } from "pg";
 
 /**

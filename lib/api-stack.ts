@@ -11,7 +11,6 @@ import path from "path";
 import { SHARED_LAMBDA_SG_NAME, SHARED_VPC_NAME } from "./config";
 
 export interface ApiStackProps extends cdk.StackProps {
-  /** User pool from this stage's AuthenticationStack. Its tokens are required on every endpoint except /echo */
   userPool: cognito.IUserPool;
 }
 
@@ -48,8 +47,6 @@ export class ApiStack extends cdk.Stack {
       NODE_EXTRA_CA_CERTS: "/var/runtime/ca-cert.pem",
     };
 
-    // Checks the ID token in the Authorization header against this stage's user pool.
-    // Requests without a valid token get a 401 from API gateway before any lambda runs.
     const authorizer = new apigateway.CognitoUserPoolsAuthorizer(
       this,
       "RaserAuthorizer",
@@ -60,8 +57,6 @@ export class ApiStack extends cdk.Stack {
     const api = new apigateway.RestApi(this, "RaserApi", {
       restApiName: `${stageName.toLowerCase()}-RaserApi`,
 
-      // Require a logged-in user on every method by default. Methods that should be
-      // public have to opt out with authorizationType: NONE (CORS preflights already do)
       defaultMethodOptions: {
         authorizer,
         authorizationType: apigateway.AuthorizationType.COGNITO,
@@ -77,8 +72,6 @@ export class ApiStack extends cdk.Stack {
       deployOptions: { stageName: "api" },
     });
 
-    // Errors that come from API gateway itself (e.g. 401 from the authorizer) never reach a
-    // lambda, so they need their own CORS header or the browser reports a CORS error instead
     api.addGatewayResponse("Default4xx", {
       type: apigateway.ResponseType.DEFAULT_4XX,
       responseHeaders: { "Access-Control-Allow-Origin": "'*'" },
