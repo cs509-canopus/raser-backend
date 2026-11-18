@@ -1,5 +1,6 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
+import { getUserID } from "../auth";
 import { buildResponse } from "../response-builder";
 import { validate } from "../validation";
 import * as z from "zod";
@@ -27,8 +28,10 @@ export const handler = async (
   }
 
   // Get ID of logged-in user
-  const testID = "ffffffff-ffff-ffff-ffff-ffffffffffff";
-  const userID = event.requestContext.authorizer?.claims?.sub ?? testID;
+  const userID = getUserID(event);
+  if (!userID) {
+    return buildResponse(401, { error: "Unauthorized" });
+  }
 
   // Withdraw the selected journal
   const result = await withdrawJournal({
@@ -71,7 +74,7 @@ export async function withdrawJournal(
     // Check if the journal exists under this user
     const findJournalResult = await query(
       `SELECT 1 FROM journals 
-       WHERE owner_id = $1::uuid AND id = $2::uuid`,
+       WHERE owner_id = $1 AND id = $2::uuid`,
       [args.userID, args.journalID],
     );
 

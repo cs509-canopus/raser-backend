@@ -1,7 +1,9 @@
 // POST /journals - issue #13
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
-import { query } from "../db";
+import { withTransaction } from "../db";
+import { getUserID } from "../auth";
 import { buildResponse } from "../response-builder";
+import { ensureJournalDesigner } from "../users";
 import { validate } from "../validation";
 import * as z from "zod";
 
@@ -37,12 +39,19 @@ export const handler = async (
     });
   }
 
+  // Get ID of logged-in user
+  const userID = getUserID(event);
+  if (!userID) {
+    return buildResponse(401, { error: "Unauthorized" });
+  }
+
   // Create the journal
   let name = validatedBody.name;
   let description = validatedBody.description;
   let websiteUrl = validatedBody.websiteUrl;
   let coverImageUrl = validatedBody.coverImageUrl;
   const result = await createJournal({
+    ownerID: userID,
     name,
     description,
     websiteUrl,
@@ -55,6 +64,7 @@ export const handler = async (
 };
 
 export interface CreateJournalArgs {
+  ownerID: string;
   name: string;
   description?: string;
   websiteUrl?: string;
@@ -89,13 +99,23 @@ export async function createJournal(
 ): Promise<CreateJournalResult | CreateJournalError> {
   // create journal entry and return the created row
   try {
-    // TODO: replace hardcoded owner_id in next iteration with actual user ID from auth context
-    const createJournalResult = await query<JournalSchema>(
-      `INSERT INTO journals (owner_id, name, description, website_url, cover_image)
-             VALUES ('ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid, $1::text, $2, $3, $4) 
-             RETURNING *`,
-      [args.name, args.description, args.websiteUrl, args.coverImageUrl],
-    );
+    const createJournalResult = await withTransaction(async (client) => {
+      // A new user has no database rows until they create something
+      await ensureJournalDesigner(client, args.ownerID);
+
+      return client.query<JournalSchema>(
+        `INSERT INTO journals (owner_id, name, description, website_url, cover_image)
+         VALUES ($1, $2::text, $3, $4, $5)
+         RETURNING *`,
+        [
+          args.ownerID,
+          args.name,
+          args.description,
+          args.websiteUrl,
+          args.coverImageUrl,
+        ],
+      );
+    });
 
     // return error if journal was not created
     if (createJournalResult.rowCount === 0) {

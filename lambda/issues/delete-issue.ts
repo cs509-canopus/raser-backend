@@ -1,5 +1,6 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
+import { getUserID } from "../auth";
 import { buildResponse } from "../response-builder";
 import { validate } from "../validation";
 import * as z from "zod";
@@ -26,8 +27,14 @@ export const handler = async (
     });
   }
 
+  // Get ID of logged-in user
+  const userID = getUserID(event);
+  if (!userID) {
+    return buildResponse(401, { error: "Unauthorized" });
+  }
+
   // Delete the selected issue
-  const result = await deleteIssue({ issueID: validatedPath.issueID });
+  const result = await deleteIssue({ userID, issueID: validatedPath.issueID });
 
   // Construct response object
   const status = "error" in result ? 400 : 200;
@@ -35,6 +42,7 @@ export const handler = async (
 };
 
 export interface DeleteIssueArgs {
+  userID: string;
   issueID: string;
 }
 
@@ -58,13 +66,16 @@ export async function deleteIssue(
   args: DeleteIssueArgs,
 ): Promise<DeleteIssueResult | DeleteIssueError> {
   try {
-    // Check if the issue exists
+    // Check if the issue exists in a journal owned by the user
     const findIssueResult = await query(
-      `SELECT 1 FROM issues WHERE id = $1::uuid`,
-      [args.issueID],
+      `SELECT 1 FROM issues
+       JOIN journals ON journals.id = issues.journal_id
+       WHERE issues.id = $1::uuid
+         AND journals.owner_id = $2`,
+      [args.issueID, args.userID],
     );
 
-    // Return error if the chosen issue does not exist
+    // Return error if the chosen issue does not exist under this user
     if (findIssueResult.rowCount === 0) {
       return {
         error: `No issue with ID ${args.issueID}`,
