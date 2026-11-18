@@ -8,14 +8,7 @@ import {
   type QueryFn,
 } from "./shared/types";
 import { parseJsonBody, validateAddPaperBody } from "./shared/validation";
-
-const resultParams: Partial<APIGatewayProxyResult> = {
-  isBase64Encoded: false,
-  headers: {
-    "Access-Control-Allow-Origin": "*",
-  },
-  multiValueHeaders: {},
-};
+import { buildResponse } from "../response-builder";
 
 export async function addPaperCore(
   issueId: string | undefined,
@@ -70,9 +63,5 @@ export const handler = async (
     event.body,
     realQuery,
   );
-  return {
-    statusCode: result.statusCode,
-    body: JSON.stringify(result.body),
-    ...resultParams,
-  };
+  return buildResponse(result.statusCode, result.body);
 };

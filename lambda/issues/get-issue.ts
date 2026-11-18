@@ -1,54 +1,37 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
+import { buildResponse } from "../response-builder";
+import { validate } from "../validation";
+import * as z from "zod";
 
-const resultParams: Partial<APIGatewayProxyResult> = {
-  isBase64Encoded: false,
-  headers: {
-    "Access-Control-Allow-Origin": "*",
-  },
-  multiValueHeaders: {},
-};
+const pathSchema = z.object({
+  issueID: z.uuid(),
+});
 
 export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
   // Extract path params
   const pathParams = event.pathParameters ?? {};
+  const { result: validatedPath, errors: pathErrors } = validate(
+    pathSchema,
+    pathParams,
+  );
 
-  // Make sure issueID is present in path parameter
-  let error = "";
-  if (!Object.hasOwn(pathParams, "issueID")) {
-    error = "Missing path parameter: issueID";
-  }
-
-  // Return 400 early if there is an error
-  if (error != "") {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: error }),
-      ...resultParams,
-    };
+  // Return 400 early on input error
+  if (pathErrors) {
+    return buildResponse(400, {
+      error: "Input error",
+      pathErrors,
+    });
   }
 
   // Get the selected issue
-  const result = await getIssue({ issueID: pathParams.issueID! });
+  const result = await getIssue({ issueID: validatedPath.issueID });
 
   // Construct response object
-  let status;
-  let body;
-  if ("error" in result) {
-    status = 400;
-    body = JSON.stringify(result);
-  } else {
-    status = 200;
-    body = JSON.stringify(result);
-  }
-
-  return {
-    statusCode: status,
-    body,
-    ...resultParams,
-  };
+  const status = "error" in result ? 400 : 200;
+  return buildResponse(status, result);
 };
 
 export interface GetIssueArgs {

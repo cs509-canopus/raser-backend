@@ -1,40 +1,47 @@
 // POST /journals - issue #13
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
+import { buildResponse } from "../response-builder";
+import { validate } from "../validation";
+import * as z from "zod";
 
-const resultParams: Partial<APIGatewayProxyResult> = {
-  isBase64Encoded: false,
-  headers: {
-    "Access-Control-Allow-Origin": "*",
-  },
-  multiValueHeaders: {},
-};
+const bodySchema = z.object({
+  name: z.string().nonempty(),
+  description: z.string().optional(),
+  websiteUrl: z.url().optional(),
+  coverImageUrl: z.url().optional(),
+});
 
 export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
-  const bodyArgs = JSON.parse(event.body ?? "{}");
-
-  // make sure body has "name" parameter
-  let error = "";
-  if (!Object.hasOwn(bodyArgs, "name")) {
-    error = "Missing body parameter: name";
+  // Extract and validate body
+  let bodyArgs;
+  try {
+    bodyArgs = JSON.parse(event.body ?? "{}");
+  } catch {
+    return buildResponse(400, {
+      error: "Invalid JSON body",
+    });
   }
-  // return 400 early if there is an error
-  if (error != "") {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: error }),
-      ...resultParams,
-    };
+  const { result: validatedBody, errors: bodyErrors } = validate(
+    bodySchema,
+    bodyArgs,
+  );
+
+  // return 400 early on input error
+  if (bodyErrors) {
+    return buildResponse(400, {
+      error: "Input error",
+      bodyErrors,
+    });
   }
 
-  // create the journal
-  let name = bodyArgs.name;
-  let description = bodyArgs.description ?? null;
-  let websiteUrl = bodyArgs.websiteUrl ?? null;
-  let coverImageUrl = bodyArgs.coverImageUrl ?? null;
-
+  // Create the journal
+  let name = validatedBody.name;
+  let description = validatedBody.description;
+  let websiteUrl = validatedBody.websiteUrl;
+  let coverImageUrl = validatedBody.coverImageUrl;
   const result = await createJournal({
     name,
     description,
@@ -43,21 +50,8 @@ export const handler = async (
   });
 
   // construct response object
-  let status;
-  let body;
-  if ("error" in result) {
-    status = 400;
-    body = JSON.stringify(result);
-  } else {
-    status = 201;
-    body = JSON.stringify(result);
-  }
-
-  return {
-    statusCode: status,
-    body,
-    ...resultParams,
-  };
+  const status = "error" in result ? 400 : 201;
+  return buildResponse(status, result);
 };
 
 export interface CreateJournalArgs {

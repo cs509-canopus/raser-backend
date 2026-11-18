@@ -1,49 +1,48 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
+import { buildResponse } from "../response-builder";
+import { validate } from "../validation";
+import * as z from "zod";
 
-const resultParams: Partial<APIGatewayProxyResult> = {
-  isBase64Encoded: false,
-  headers: {
-    "Access-Control-Allow-Origin": "*",
-  },
-  multiValueHeaders: {},
-};
+const pathSchema = z.object({
+  journalID: z.uuid(),
+});
 
 export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
-  // Extract path params
+  // Extract and validate path params
   const pathParams = event.pathParameters || {};
+  const { result: validatedPath, errors: pathErrors } = validate(
+    pathSchema,
+    pathParams,
+  );
 
-  // Make sure journalID is present in path parameter
-  let error = "";
-  if (!Object.hasOwn(pathParams, "journalID")) {
-    error = "Missing path parameter: journalID";
+  // Return 400 early on input error
+  if (pathErrors) {
+    return buildResponse(400, {
+      error: "Input error",
+      pathErrors,
+    });
   }
 
-  // Return 400 early if there is an error
-  if (error != "") {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: error }),
-      ...resultParams,
-    };
-  }
+  // Get ID of logged-in user
+  const testID = "ffffffff-ffff-ffff-ffff-ffffffffffff";
+  const userID = event.requestContext.authorizer?.claims?.sub ?? testID;
 
   // Withdraw the selected journal
-  const result = await withdrawJournal({ journalID: pathParams.journalID! });
+  const result = await withdrawJournal({
+    userID: userID,
+    journalID: validatedPath.journalID,
+  });
 
   // Construct response object
-  let status = "error" in result ? 400 : 200;
-  const body = JSON.stringify(result);
-  return {
-    statusCode: status,
-    body,
-    ...resultParams,
-  };
+  const status = "error" in result ? 400 : 200;
+  return buildResponse(status, result);
 };
 
 export interface WithdrawJournalArgs {
+  userID: string;
   journalID: string;
 }
 
@@ -69,26 +68,56 @@ export async function withdrawJournal(
   args: WithdrawJournalArgs,
 ): Promise<WithdrawJournalResult | WithdrawJournalError> {
   try {
-    // Check if the journal exists
+    // Check if the journal exists under this user
     const findJournalResult = await query(
-      `SELECT 1 FROM journals WHERE id = $1::uuid`,
-      [args.journalID],
+      `SELECT 1 FROM journals 
+       WHERE owner_id = $1::uuid AND id = $2::uuid`,
+      [args.userID, args.journalID],
     );
 
-    // Return error if the chosen journal does not exist
+    // Return error if the chosen journal does not exist under this user
     if (findJournalResult.rowCount === 0) {
       return {
-        error: `No journal with ID ${args.journalID}`,
+        error: `Journal not found: ${args.journalID}`,
       };
     }
 
-    // Delete the journal as long as it doesn't have any issues
+    // Delete any reviews on any papers in this journal
+    await query(
+      `DELETE FROM reviews
+       WHERE id IN (
+         SELECT reviews.id
+         FROM reviews
+         JOIN papers ON reviews.paper_id = papers.id
+         JOIN issues ON papers.issue_id = issues.id
+         WHERE issues.journal_id = $1::uuid
+       )`,
+      [args.journalID],
+    );
+
+    // Delete any papers in this journal
+    await query(
+      `DELETE FROM papers
+       WHERE id IN (
+         SELECT papers.id
+         FROM papers
+         JOIN issues ON papers.issue_id = issues.id
+         WHERE issues.journal_id = $1::uuid
+       )`,
+      [args.journalID],
+    );
+
+    // Delete any journals in this issue
+    await query(
+      `DELETE FROM issues
+       WHERE journal_id = $1::uuid`,
+      [args.journalID],
+    );
+
+    // Delete the journal
     const deleteResult = await query<JournalsSchema>(
       `DELETE FROM journals 
        WHERE id = $1::uuid
-       AND NOT EXISTS (
-         SELECT 1 FROM issues 
-         WHERE issues.journal_id = $1::uuid)
        RETURNING *`,
       [args.journalID],
     );
@@ -96,7 +125,7 @@ export async function withdrawJournal(
     // Return error if the chosen journal has issues
     if (deleteResult.rowCount === 0) {
       return {
-        error: `Cannot delete journal with ID ${args.journalID} because it has issues`,
+        error: `Cannot delete journal with ID ${args.journalID}`,
       };
     }
 

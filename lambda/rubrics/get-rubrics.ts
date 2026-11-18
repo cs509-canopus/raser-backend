@@ -1,51 +1,43 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
+import { buildResponse } from "../response-builder";
+import { validate } from "../validation";
+import * as z from "zod";
 
-const resultParams: Partial<APIGatewayProxyResult> = {
-  isBase64Encoded: false,
-  headers: {
-    "Access-Control-Allow-Origin": "*",
-  },
-  multiValueHeaders: {},
-};
+const pathSchema = z.object({
+  rubricID: z.uuid(),
+});
+
+// Test user ID
+// TODO: replace with signed-in user ID
+const userID = "ffffffff-ffff-ffff-ffff-ffffffffffff";
 
 export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
-  // Test user ID
-  const userID = "ffffffff-ffff-ffff-ffff-ffffffffffff";
+  // Extract path params
+  const pathParams = event.pathParameters || {};
+  const { result: validatedPath, errors: pathErrors } = validate(
+    pathSchema,
+    pathParams,
+  );
 
-  // Rubric ID from API Gateway (is there a hardcoded rubric we want to make)
-  const rubricID = event.pathParameters?.rubricID;
-
-  if (!rubricID) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({
-        error: "Missing path parameter: rubricID",
-      }),
-      ...resultParams,
-    };
+  // Return 400 early on input error
+  if (pathErrors) {
+    return buildResponse(400, {
+      error: "Input error",
+      pathErrors,
+    });
   }
 
-  const result = await getRubric({ rubricID, userID });
-
-  let status;
-  let body;
+  // Get the selected rubric
+  const result = await getRubric({ rubricID: validatedPath.rubricID, userID });
 
   if ("error" in result) {
-    status = result.error.startsWith("Failed") ? 500 : 404;
-    body = JSON.stringify({ error: result.error });
-  } else {
-    status = 200;
-    body = JSON.stringify(result);
+    const status = result.error.startsWith("Failed") ? 500 : 404;
+    return buildResponse(status, { error: result.error });
   }
-
-  return {
-    statusCode: status,
-    body,
-    ...resultParams,
-  };
+  return buildResponse(200, result);
 };
 
 export interface GetRubricArgs {
@@ -163,4 +155,3 @@ export async function getRubric(
     return { error: "Failed to get rubric" };
   }
 }
-
