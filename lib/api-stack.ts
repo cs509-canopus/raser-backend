@@ -1,5 +1,6 @@
 import * as cdk from "aws-cdk-lib";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
+import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
@@ -9,13 +10,18 @@ import { Construct } from "constructs";
 import path from "path";
 import { SHARED_LAMBDA_SG_NAME, SHARED_VPC_NAME } from "./config";
 
+export interface ApiStackProps extends cdk.StackProps {
+  /** User pool from this stage's AuthenticationStack. Its tokens are required on every endpoint except /echo */
+  userPool: cognito.IUserPool;
+}
+
 export class ApiStack extends cdk.Stack {
   private readonly db: IDatabaseInstance;
   private readonly dbEnvironment;
   private readonly vpc: ec2.IVpc;
   private readonly lambdaSg: ec2.ISecurityGroup;
 
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
 
     // Get the name of this stage
@@ -42,9 +48,24 @@ export class ApiStack extends cdk.Stack {
       NODE_EXTRA_CA_CERTS: "/var/runtime/ca-cert.pem",
     };
 
+    // Checks the ID token in the Authorization header against this stage's user pool.
+    // Requests without a valid token get a 401 from API gateway before any lambda runs.
+    const authorizer = new apigateway.CognitoUserPoolsAuthorizer(
+      this,
+      "RaserAuthorizer",
+      { cognitoUserPools: [props.userPool] },
+    );
+
     // Declare tutorial-api API gateway
     const api = new apigateway.RestApi(this, "RaserApi", {
       restApiName: `${stageName.toLowerCase()}-RaserApi`,
+
+      // Require a logged-in user on every method by default. Methods that should be
+      // public have to opt out with authorizationType: NONE (CORS preflights already do)
+      defaultMethodOptions: {
+        authorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+      },
 
       // Enable CORS for all methods and all origins on all resources in the API
       defaultCorsPreflightOptions: {
@@ -54,6 +75,17 @@ export class ApiStack extends cdk.Stack {
 
       // Make URLs end in /api/ instead of /prod/
       deployOptions: { stageName: "api" },
+    });
+
+    // Errors that come from API gateway itself (e.g. 401 from the authorizer) never reach a
+    // lambda, so they need their own CORS header or the browser reports a CORS error instead
+    api.addGatewayResponse("Default4xx", {
+      type: apigateway.ResponseType.DEFAULT_4XX,
+      responseHeaders: { "Access-Control-Allow-Origin": "'*'" },
+    });
+    api.addGatewayResponse("Default5xx", {
+      type: apigateway.ResponseType.DEFAULT_5XX,
+      responseHeaders: { "Access-Control-Allow-Origin": "'*'" },
     });
 
     const echoFunction = new NodejsFunction(this, "Echo", {
@@ -66,6 +98,7 @@ export class ApiStack extends cdk.Stack {
     echoResource.addMethod(
       "POST",
       new apigateway.LambdaIntegration(echoFunction),
+      { authorizationType: apigateway.AuthorizationType.NONE }, // public
     );
 
     const listJournalsFunction = this.createLambda({

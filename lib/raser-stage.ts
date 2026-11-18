@@ -20,7 +20,10 @@ export class RaserStage extends cdk.Stage {
       "AuthenticationStack",
       { env },
     );
-    new ApiStack(this, "ApiStack", { env });
+    new ApiStack(this, "ApiStack", {
+      env,
+      userPool: authenticationStack.userPool,
+    });
     new SiteStack(this, "SiteStack", {});
   }
 }
