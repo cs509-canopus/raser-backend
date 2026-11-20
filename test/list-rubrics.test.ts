@@ -187,6 +187,45 @@ describeWithDatabase("listRubrics", () => {
     expect(ids).toEqual([IDS.rubric1, IDS.rubric2].sort());
   });
 
+  it("returns publicationDate for published rubrics and null for unpublished ones", async () => {
+    const unpublishedID = await createUnpublishedRubric();
+
+    const result = await listRubrics({ userID: IDS.designer1 });
+    if ("error" in result) throw new Error(result.error);
+
+    const published = result.rubrics.find((r) => r.id === IDS.rubric1)!;
+    const unpublished = result.rubrics.find((r) => r.id === unpublishedID)!;
+
+    // rubric1 was published on 2026-01-10T09:00:00Z and is not deprecated
+    expect(published.publicationDate).toEqual(new Date("2026-01-10T09:00:00Z"));
+    expect(published.replacedByID).toBeNull();
+
+    // The unpublished rubric has no publication date and is not deprecated
+    expect(unpublished.publicationDate).toBeNull();
+    expect(unpublished.replacedByID).toBeNull();
+  });
+
+  it("returns replacedByID as the ID of the replacing rubric for deprecated rubrics", async () => {
+    // Deprecate rubric1, replacing it with rubric2
+    await query(
+      "UPDATE rubrics SET replaced_by_id = $1::uuid WHERE id = $2::uuid",
+      [IDS.rubric2, IDS.rubric1],
+    );
+
+    const result = await listRubrics({
+      userID: IDS.designer1,
+      filters: { deprecated: true },
+    });
+    if ("error" in result) throw new Error(result.error);
+
+    // Only rubric1 is deprecated, and it should point at rubric2
+    expect(result.rubrics).toHaveLength(1);
+    const row = result.rubrics[0];
+    expect(row.id).toBe(IDS.rubric1);
+    expect(row.replacedByID).toBe(IDS.rubric2);
+    expect(row.publicationDate).toEqual(new Date("2026-01-10T09:00:00Z"));
+  });
+
   it("lists all rubrics owned by designer1 with the handler", async () => {
     // Parse event JSON
     const event = JSON.parse(
