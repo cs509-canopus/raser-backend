@@ -88,6 +88,8 @@ export interface ListRubricsResult {
     highQualityThreshold: number;
     lowQualityThreshold: number;
     questionCount: number;
+    publicationDate: Date | null;
+    replacedByID: string | null;
   }[];
 }
 
@@ -102,6 +104,8 @@ interface RubricsSchema {
   high_score_threshold: number;
   low_score_threshold: number;
   question_count: number;
+  publication_date: Date | null;
+  replaced_by_id: string | null;
 }
 
 export async function listRubrics(
@@ -119,6 +123,8 @@ export async function listRubrics(
          r.title,
          r.high_score_threshold,
          r.low_score_threshold,
+         r.publication_date,
+         r.replaced_by_id,
          COUNT(rq.rubric_id)::int AS question_count
        FROM rubrics r
        LEFT JOIN rubric_questions rq
@@ -152,6 +158,8 @@ export async function listRubrics(
         highQualityThreshold: row.high_score_threshold,
         lowQualityThreshold: row.low_score_threshold,
         questionCount: row.question_count,
+        publicationDate: row.publication_date,
+        replacedByID: row.replaced_by_id,
       })),
     };
   } catch (err) {
