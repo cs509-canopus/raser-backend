@@ -1,6 +1,7 @@
 // GET /papers/{paperID} (#22)
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query as realQuery } from "../db";
+import { getUserID } from "../auth";
 import { getPaperViewInfo } from "./shared/papers-repo";
 import {
   errorResult,
@@ -11,14 +12,20 @@ import { buildResponse } from "../response-builder";
 
 export async function viewPaperCore(
   paperId: string | undefined,
+  userId: string | undefined,
   query: QueryFn,
 ): Promise<CoreResult> {
+  if (!userId) {
+    return errorResult(401, "Unauthorized");
+  }
+
   if (!paperId) {
     return errorResult(400, "Invalid paperID");
   }
 
   try {
-    const info = await getPaperViewInfo(query, paperId);
+    // only the owner of the paper's journal can view it
+    const info = await getPaperViewInfo(query, paperId, userId);
     if (!info) {
       return errorResult(400, "Invalid paperID");
     }
@@ -46,6 +53,10 @@ export async function viewPaperCore(
 export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
-  const result = await viewPaperCore(event.pathParameters?.paperID, realQuery);
+  const result = await viewPaperCore(
+    event.pathParameters?.paperID,
+    getUserID(event),
+    realQuery,
+  );
   return buildResponse(result.statusCode, result.body);
 };

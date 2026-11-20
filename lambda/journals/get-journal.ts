@@ -1,5 +1,6 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
+import { getUserID } from "../auth";
 import { buildResponse } from "../response-builder";
 import { validate } from "../validation";
 import * as z from "zod";
@@ -26,8 +27,17 @@ export const handler = async (
     });
   }
 
+  // Get ID of logged-in user
+  const userID = getUserID(event);
+  if (!userID) {
+    return buildResponse(401, { error: "Unauthorized" });
+  }
+
   // Get the selected journal
-  const result = await getJournal({ journalID: validatedPath.journalID });
+  const result = await getJournal({
+    userID,
+    journalID: validatedPath.journalID,
+  });
 
   // Construct response object
   const status = "error" in result ? 400 : 200;
@@ -35,6 +45,7 @@ export const handler = async (
 };
 
 export interface GetJournalArgs {
+  userID: string;
   journalID: string;
 }
 
@@ -66,16 +77,16 @@ export async function getJournal(
   args: GetJournalArgs,
 ): Promise<GetJournalResult | GetJournalError> {
   try {
-    // Select entry from the journal table
-    // TODO: add check that owner_id matches the logged in user. If not, return 403 Forbidden
+    // Select entry from the journal table if it is owned by the user
     const journalResult = await query<JournalsSchema>(
       `SELECT id, owner_id, name, description, website_url, cover_image, created_at
        FROM journals
-       WHERE id = $1::uuid`,
-      [args.journalID],
+       WHERE id = $1::uuid
+         AND owner_id = $2`,
+      [args.journalID, args.userID],
     );
 
-    // Return error if the chosen journal does not exist
+    // Return error if the chosen journal does not exist under this user
     if (journalResult.rowCount == 0) {
       return {
         error: `Could not get journal with ID ${args.journalID}`,

@@ -1,5 +1,6 @@
 import * as cdk from "aws-cdk-lib";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
+import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
@@ -9,13 +10,17 @@ import { Construct } from "constructs";
 import path from "path";
 import { SHARED_LAMBDA_SG_NAME, SHARED_VPC_NAME } from "./config";
 
+export interface ApiStackProps extends cdk.StackProps {
+  userPool: cognito.IUserPool;
+}
+
 export class ApiStack extends cdk.Stack {
   private readonly db: IDatabaseInstance;
   private readonly dbEnvironment;
   private readonly vpc: ec2.IVpc;
   private readonly lambdaSg: ec2.ISecurityGroup;
 
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
 
     // Get the name of this stage
@@ -42,9 +47,20 @@ export class ApiStack extends cdk.Stack {
       NODE_EXTRA_CA_CERTS: "/var/runtime/ca-cert.pem",
     };
 
+    const authorizer = new apigateway.CognitoUserPoolsAuthorizer(
+      this,
+      "RaserAuthorizer",
+      { cognitoUserPools: [props.userPool] },
+    );
+
     // Declare tutorial-api API gateway
     const api = new apigateway.RestApi(this, "RaserApi", {
       restApiName: `${stageName.toLowerCase()}-RaserApi`,
+
+      defaultMethodOptions: {
+        authorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+      },
 
       // Enable CORS for all methods and all origins on all resources in the API
       defaultCorsPreflightOptions: {
@@ -54,6 +70,15 @@ export class ApiStack extends cdk.Stack {
 
       // Make URLs end in /api/ instead of /prod/
       deployOptions: { stageName: "api" },
+    });
+
+    api.addGatewayResponse("Default4xx", {
+      type: apigateway.ResponseType.DEFAULT_4XX,
+      responseHeaders: { "Access-Control-Allow-Origin": "'*'" },
+    });
+    api.addGatewayResponse("Default5xx", {
+      type: apigateway.ResponseType.DEFAULT_5XX,
+      responseHeaders: { "Access-Control-Allow-Origin": "'*'" },
     });
 
     const echoFunction = new NodejsFunction(this, "Echo", {
@@ -66,6 +91,7 @@ export class ApiStack extends cdk.Stack {
     echoResource.addMethod(
       "POST",
       new apigateway.LambdaIntegration(echoFunction),
+      { authorizationType: apigateway.AuthorizationType.NONE }, // public
     );
 
     const listJournalsFunction = this.createLambda({

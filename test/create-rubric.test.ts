@@ -6,7 +6,10 @@ import type { APIGatewayProxyEvent } from "aws-lambda";
 
 jest.mock("../lambda/db", () => ({
   query: jest.fn(),
+  // run the transaction's queries through the same mock
+  withTransaction: jest.fn((fn) => fn({ query: jest.requireMock("../lambda/db").query })),
 }));
+jest.mock("../lambda/users");
 
 const mockQuery = jest.mocked(query);
 

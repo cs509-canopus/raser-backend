@@ -1,5 +1,6 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
+import { getUserID } from "../auth";
 import { buildResponse } from "../response-builder";
 
 export const handler = async (
@@ -9,8 +10,14 @@ export const handler = async (
   const queryParams = event.queryStringParameters || {};
   let query = queryParams.query;
 
-  // Get all journals
-  const result = await listJournals({ query });
+  // Get ID of logged-in user
+  const userID = getUserID(event);
+  if (!userID) {
+    return buildResponse(401, { error: "Unauthorized" });
+  }
+
+  // Get all journals owned by the logged-in user
+  const result = await listJournals({ userID, query });
 
   // Construct response object
   const status = "error" in result ? 500 : 200;
@@ -18,6 +25,7 @@ export const handler = async (
 };
 
 export interface ListJournalsArgs {
+  userID: string;
   query?: string;
 }
 
@@ -34,7 +42,8 @@ export interface ListJournalsResult {
 }
 
 /**
- * Returns a list all journals
+ * Returns a list of all journals owned by the user
+ * @prop userID - ID of the logged-in user
  * @prop query - String to match journals against
  * @returns list of `journals`, or `error` on database error
  */
@@ -43,7 +52,6 @@ export async function listJournals(
 ): Promise<ListJournalsResult> {
   const q = args.query?.trim();
   try {
-    // TODO: add WHERE owner_id = {id of the logged-in user}
     const result = await query<JournalInfo>(
       `SELECT 
         journals.id, 
@@ -52,12 +60,15 @@ export async function listJournals(
         COUNT(issues.id) as issueCount
        FROM journals
        LEFT JOIN issues ON issues.journal_id = journals.id
-       WHERE $1::text IS NULL
-          OR name ILIKE '%' || $1 || '%'
-          OR description ILIKE '%' || $1 || '%'
+       WHERE journals.owner_id = $2
+         AND (
+           $1::text IS NULL
+           OR name ILIKE '%' || $1 || '%'
+           OR description ILIKE '%' || $1 || '%'
+         )
        GROUP BY journals.id 
        ORDER BY name;`,
-      [q || null],
+      [q || null, args.userID],
     );
 
     return { journals: result.rows };

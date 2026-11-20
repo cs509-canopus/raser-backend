@@ -1,5 +1,6 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { withTransaction } from "../db";
+import { getUserID } from "../auth";
 import { buildResponse } from "../response-builder";
 import { validate } from "../validation";
 import * as z from "zod";
@@ -45,8 +46,10 @@ export const handler = async (
     });
   }
   // Get ID of logged-in user
-  const testID = "ffffffff-ffff-ffff-ffff-ffffffffffff";
-  const userID = event.requestContext.authorizer?.claims?.sub ?? testID;
+  const userID = getUserID(event);
+  if (!userID) {
+    return buildResponse(401, { error: "Unauthorized" });
+  }
 
   // Delete the selected rubric
   const result = await deprecateRubric({
@@ -103,7 +106,7 @@ export async function deprecateRubric(
            (replaced_by_id IS NOT NULL) as is_deprecated
          FROM rubrics
          WHERE id = $1::uuid
-         AND designer_id = $2::uuid
+         AND designer_id = $2
          FOR UPDATE`,
         [args.rubricID, args.userID],
       );

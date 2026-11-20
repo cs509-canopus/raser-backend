@@ -9,13 +9,18 @@ export async function issueExists(
   return rows.length > 0;
 }
 
+// only finds the issue if its journal is owned by userId
 export async function journalIdForIssue(
   query: QueryFn,
   issueId: string,
+  userId: string,
 ): Promise<string | null> {
   const { rows } = await query(
-    "SELECT journal_id FROM issues WHERE id = $1",
-    [issueId],
+    `SELECT i.journal_id
+     FROM issues i
+     JOIN journals j ON j.id = i.journal_id
+     WHERE i.id = $1 AND j.owner_id = $2`,
+    [issueId, userId],
   );
   const row = rows[0] as { journal_id: string } | undefined;
   return row?.journal_id ?? null;
@@ -44,13 +49,21 @@ export async function insertPaper(
   return rows[0] as unknown as PaperRow;
 }
 
+// only finds the paper if its journal is owned by userId
 export async function getPaperById(
   query: QueryFn,
   paperId: string,
+  userId: string,
 ): Promise<PaperRow | null> {
   const { rows } = await query(
-    `SELECT ${PAPER_COLUMNS} FROM papers WHERE id = $1`,
-    [paperId],
+    `SELECT ${PAPER_COLUMNS} FROM papers
+     WHERE id = $1
+       AND issue_id IN (
+         SELECT i.id FROM issues i
+         JOIN journals j ON j.id = i.journal_id
+         WHERE j.owner_id = $2
+       )`,
+    [paperId, userId],
   );
   return (rows[0] as unknown as PaperRow) ?? null;
 }
@@ -77,9 +90,11 @@ export interface PaperViewInfo {
   reviewIds: string[];
 }
 
+// only finds the paper if its journal is owned by userId
 export async function getPaperViewInfo(
   query: QueryFn,
   paperId: string,
+  userId: string,
 ): Promise<PaperViewInfo | null> {
   // return date as YYYY-MM-DD string
   const { rows } = await query(
@@ -89,8 +104,8 @@ export async function getPaperViewInfo(
      FROM papers p
      JOIN issues i ON i.id = p.issue_id
      JOIN journals j ON j.id = i.journal_id
-     WHERE p.id = $1`,
-    [paperId],
+     WHERE p.id = $1 AND j.owner_id = $2`,
+    [paperId, userId],
   );
   const row = rows[0] as
     | {

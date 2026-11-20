@@ -1,6 +1,7 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
 import { DatabaseError } from "pg";
+import { getUserID } from "../auth";
 import { buildResponse } from "../response-builder";
 import { validate } from "../validation";
 import * as z from "zod";
@@ -47,8 +48,15 @@ export const handler = async (
     });
   }
 
+  // Get ID of logged-in user
+  const userID = getUserID(event);
+  if (!userID) {
+    return buildResponse(401, { error: "Unauthorized" });
+  }
+
   // Create the issue
   const result = await createIssue({
+    userID,
     journalID: validatedPath.journalID,
     volumeNumber: validatedBody.volumeNumber,
     issueNumber: validatedBody.issueNumber,
@@ -60,6 +68,7 @@ export const handler = async (
 };
 
 export interface CreateIssueArgs {
+  userID: string;
   journalID: string;
   volumeNumber: number;
   issueNumber: number;
@@ -89,19 +98,22 @@ export async function createIssue(
   args: CreateIssueArgs,
 ): Promise<CreateIssueResult | CreateIssueError> {
   try {
-    // Create issue entry and return the created row
-    // TODO: add check that journal.owner_id matches the logged in user. If not, return 403 Forbidden
+    // Create issue entry (only if the journal is owned by the user) and return the created row
     const createIssueResult = await query<IssuesSchema>(
       `INSERT INTO issues (journal_id, volume_number, issue_number)
-       VALUES ($1::uuid, $2::integer, $3::integer)
+       SELECT $1::uuid, $2::integer, $3::integer
+       WHERE EXISTS (
+         SELECT 1 FROM journals
+         WHERE id = $1::uuid AND owner_id = $4
+       )
        RETURNING *`,
-      [args.journalID, args.volumeNumber, args.issueNumber],
+      [args.journalID, args.volumeNumber, args.issueNumber, args.userID],
     );
 
-    // Return error if issue was not created
+    // Return error if the journal does not exist under this user
     if (createIssueResult.rowCount == 0) {
       return {
-        error: "Could not create issue",
+        error: `Journal with ID ${args.journalID} does not exist`,
       };
     }
 

@@ -1,5 +1,6 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
+import { getUserID } from "../auth";
 import { buildResponse } from "../response-builder";
 import { validate } from "../validation";
 import * as z from "zod";
@@ -52,8 +53,10 @@ export const handler = async (
     Object.keys(validatedQuery).length > 0 ? { ...validatedQuery } : undefined;
 
   // Get ID of logged-in user
-  const testID = "ffffffff-ffff-ffff-ffff-ffffffffffff";
-  const userID = event.requestContext.authorizer?.claims?.sub ?? testID;
+  const userID = getUserID(event);
+  if (!userID) {
+    return buildResponse(401, { error: "Unauthorized" });
+  }
 
   // Get all rubrics
   const result = await listRubrics({
@@ -129,7 +132,7 @@ export async function listRubrics(
        FROM rubrics r
        LEFT JOIN rubric_questions rq
          ON rq.rubric_id = r.id
-       WHERE (r.designer_id = $1::uuid OR r.publication_date IS NOT NULL)
+       WHERE (r.designer_id = $1 OR r.publication_date IS NOT NULL)
          AND ($2::timestamp IS NULL OR r.publication_date > $2)
          AND ($3::timestamp IS NULL OR r.publication_date < $3)
          AND ($4::boolean IS NULL OR (r.replaced_by_id IS NOT NULL) = $4)
