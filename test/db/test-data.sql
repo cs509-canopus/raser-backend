@@ -1,5 +1,3 @@
--- AI-generated mock database test data. Every test case starts with exactly this.
---
 -- UUID scheme: TTTTTTTT-0000-4000-8000-PPPPPPPPPPPP
 --   T = row type, one digit repeated: 1 user, 2 journal, 3 issue, 4 paper, 5 rubric, 6 review
 --   P = position, two digits per level from parent to child
