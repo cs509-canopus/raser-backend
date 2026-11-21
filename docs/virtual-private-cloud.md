@@ -1,9 +1,5 @@
 # Virtual Private Cloud (VPC)
 
-> [!NOTE]
-> This document was generated mostly using Claude code, though it has been checked for 
-> accuracy.
-
 AWS Virtual Private Cloud (VPC) is a service for creating private, isolated networks that
 constructs can communicate within. Anything placed inside a VPC (a database, a Lambda
 function, an EC2 server) gets a private IP address, and by default can only talk to other
