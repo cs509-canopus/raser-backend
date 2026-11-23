@@ -76,20 +76,23 @@ export async function listUserRubrics(
   try {
     const rubricResult = await query<RubricsSchema>(
       `
-        SELECT r.id, 
+        SELECT r.id,
+               r.designer_id,
                r.title, 
                r.high_score_threshold, 
                r.low_score_threshold, 
                r.publication_date, 
                r.is_favorite, 
                r.replaced_by_id, 
-               r.created_at, 
-               COUNT(rq.rubric_id)::int AS question_count
+               r.created_at,
+               (
+                   SELECT COUNT(*)::int
+                   FROM rubric_questions rq
+                   WHERE rq.rubric_id = r.id
+                   ) AS question_count
         FROM rubrics r
-        LEFT JOIN rubrics_questions rq
-            ON rq.rubric_id = r.rubric_id
-        WHERE r.designer_id = args.userID
-        ORDER BY r.create_at DESC`,
+        WHERE r.designer_id = $1
+        ORDER BY r.created_at DESC`,
       [args.userID],
     );
     return rubricResult.rows.map((row) => ({
