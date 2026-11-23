@@ -1,9 +1,7 @@
 import {
   listUserRubrics,
-  handler,
 } from "../lambda/rubrics/get-rubric-by-designer";
 import { query } from "../lambda/db";
-import type { APIGatewayProxyEvent } from "aws-lambda";
 
 jest.mock("../lambda/db", () => ({
   query: jest.fn(),
