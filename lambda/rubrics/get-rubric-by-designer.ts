@@ -1,14 +1,7 @@
 // GET /rubrics/by-designer - issue #84
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
-
-const resultParams: Partial<APIGatewayProxyResult> = {
-  isBase64Encoded: false,
-  headers: {
-    "Access-Control-Allow-Origin": "*",
-  },
-  multiValueHeaders: {},
-};
+import { buildResponse } from "../response-builder";
 
 export const handler = async (
   event: APIGatewayProxyEvent,
@@ -29,11 +22,7 @@ export const handler = async (
     body = JSON.stringify(result);
   }
 
-  return {
-    statusCode: status,
-    body,
-    ...resultParams,
-  };
+  return buildResponse(status, result);
 };
 
 export interface ListUserRubricsArg {
