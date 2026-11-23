@@ -2,12 +2,16 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
 import { buildResponse } from "../response-builder";
+import { getUserID } from "../auth";
 
 export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
   // Test user ID
-  const userID = "ffffffff-ffff-ffff-ffff-ffffffffffff";
+  const userID = getUserID(event);
+  if (!userID) {
+    return buildResponse(401, { error: "Unauthorized" });
+  }
 
   const result = await listUserRubrics({ userID });
 
