@@ -282,6 +282,30 @@ export class ApiStack extends cdk.Stack {
       "GET",
       new apigateway.LambdaIntegration(getRubricsFunction),
     );
+
+    // QUESTION ENDPOINTS
+
+    const createQuestionFunction = this.createLambda({
+      id: "CreateQuestion",
+      entry: path.join(
+        __dirname,
+        "..",
+        "lambda",
+        "questions",
+        "create-question.ts",
+      ),
+      dbAccess: true,
+    });
+
+    // POST /rubrics/{rubricID}/questions
+    const rubricsQuestionsResource =
+      rubricsRubricIDResource.addResource("questions");
+
+    rubricsQuestionsResource.addMethod(
+      "POST",
+      new apigateway.LambdaIntegration(createQuestionFunction),
+    );
+  
   }
 
   private createLambda({
