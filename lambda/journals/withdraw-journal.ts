@@ -1,5 +1,5 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
-import { query } from "../db";
+import { withTransaction } from "../db";
 import { getUserID } from "../auth";
 import { buildResponse } from "../response-builder";
 import { validate } from "../validation";
@@ -71,71 +71,74 @@ export async function withdrawJournal(
   args: WithdrawJournalArgs,
 ): Promise<WithdrawJournalResult | WithdrawJournalError> {
   try {
-    // Check if the journal exists under this user
-    const findJournalResult = await query(
-      `SELECT 1 FROM journals 
-       WHERE owner_id = $1 AND id = $2::uuid`,
-      [args.userID, args.journalID],
-    );
+    return withTransaction(async (client) => {
+      // Check if the journal exists under this user
+      const findJournalResult = await client.query(
+        `SELECT 1 FROM journals 
+         WHERE owner_id = $1 AND id = $2::uuid
+         FOR UPDATE`,
+        [args.userID, args.journalID],
+      );
 
-    // Return error if the chosen journal does not exist under this user
-    if (findJournalResult.rowCount === 0) {
+      // Return error if the chosen journal does not exist under this user
+      if (findJournalResult.rowCount === 0) {
+        return {
+          error: `Journal not found: ${args.journalID}`,
+        };
+      }
+
+      // Delete any reviews on any papers in this journal
+      await client.query(
+        `DELETE FROM reviews
+         WHERE id IN (
+           SELECT reviews.id
+           FROM reviews
+           JOIN papers ON reviews.paper_id = papers.id
+           JOIN issues ON papers.issue_id = issues.id
+           WHERE issues.journal_id = $1::uuid
+         )`,
+        [args.journalID],
+      );
+
+      // Delete any papers in this journal
+      await client.query(
+        `DELETE FROM papers
+         WHERE id IN (
+           SELECT papers.id
+           FROM papers
+           JOIN issues ON papers.issue_id = issues.id
+           WHERE issues.journal_id = $1::uuid
+         )`,
+        [args.journalID],
+      );
+
+      // Delete any journals in this issue
+      await client.query(
+        `DELETE FROM issues
+         WHERE journal_id = $1::uuid`,
+        [args.journalID],
+      );
+
+      // Delete the journal
+      const deleteResult = await client.query<JournalsSchema>(
+        `DELETE FROM journals 
+         WHERE id = $1::uuid
+         RETURNING *`,
+        [args.journalID],
+      );
+
+      // Return error if the chosen journal has issues
+      if (deleteResult.rowCount === 0) {
+        return {
+          error: `Cannot delete journal with ID ${args.journalID}`,
+        };
+      }
+
+      // Construct response object
       return {
-        error: `Journal not found: ${args.journalID}`,
+        journalID: deleteResult.rows[0].id,
       };
-    }
-
-    // Delete any reviews on any papers in this journal
-    await query(
-      `DELETE FROM reviews
-       WHERE id IN (
-         SELECT reviews.id
-         FROM reviews
-         JOIN papers ON reviews.paper_id = papers.id
-         JOIN issues ON papers.issue_id = issues.id
-         WHERE issues.journal_id = $1::uuid
-       )`,
-      [args.journalID],
-    );
-
-    // Delete any papers in this journal
-    await query(
-      `DELETE FROM papers
-       WHERE id IN (
-         SELECT papers.id
-         FROM papers
-         JOIN issues ON papers.issue_id = issues.id
-         WHERE issues.journal_id = $1::uuid
-       )`,
-      [args.journalID],
-    );
-
-    // Delete any journals in this issue
-    await query(
-      `DELETE FROM issues
-       WHERE journal_id = $1::uuid`,
-      [args.journalID],
-    );
-
-    // Delete the journal
-    const deleteResult = await query<JournalsSchema>(
-      `DELETE FROM journals 
-       WHERE id = $1::uuid
-       RETURNING *`,
-      [args.journalID],
-    );
-
-    // Return error if the chosen journal has issues
-    if (deleteResult.rowCount === 0) {
-      return {
-        error: `Cannot delete journal with ID ${args.journalID}`,
-      };
-    }
-
-    // Construct response object
-    return {
-      journalID: deleteResult.rows[0].id,
-    };
+    });
   } catch (err) {
     console.error("withdrawJournal failed", err);
     return { error: `Failed to withdraw journal: ${err}` };
