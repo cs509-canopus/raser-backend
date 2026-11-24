@@ -1,6 +1,3 @@
-import { editQuestionCore } from "../lambda/questions/edit-question";
-import type { QueryFn } from "../lambda/questions/shared/types";
-
 describe("editQuestionCore", () => {
   const rubricID = "123e4567-e89b-12d3-a456-426614174000";
 

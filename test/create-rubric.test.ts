@@ -1,4 +1,3 @@
-
 import { createRubric, handler } from "../lambda/rubrics/create-rubric";
 import { query } from "../lambda/db";
 import { DatabaseError } from "pg";
