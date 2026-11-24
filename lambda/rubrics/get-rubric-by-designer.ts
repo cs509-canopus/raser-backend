@@ -15,17 +15,7 @@ export const handler = async (
 
   const result = await listUserRubrics({ userID });
 
-  let status;
-  let body;
-
-  if ("error" in result) {
-    status = 500;
-    body = JSON.stringify({ error: result.error });
-  } else {
-    status = 200;
-    body = JSON.stringify(result);
-  }
-
+  const status = "error" in result ? 500 : 200;
   return buildResponse(status, result);
 };
 
