@@ -56,3 +56,27 @@ export async function insertRubricQuestion(
 
     return result.rows[0] as unknown as RubricQuestionRow;
 }
+
+export async function deleteRubricQuestion(
+  query: QueryFn,
+  rubricID: string,
+  section: number,
+  index: number,
+): Promise<RubricQuestionRow | null> {
+  const result = await query(
+    `
+      DELETE FROM rubric_questions
+      WHERE rubric_id = $1
+        AND section = $2
+        AND "index" = $3
+      RETURNING *
+    `,
+    [rubricID, section, index],
+  );
+
+  if (result.rows.length === 0) {
+    return null;
+  }
+
+  return result.rows[0] as unknown as RubricQuestionRow;
+}
