@@ -1,7 +1,9 @@
+require("dotenv").config();
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 import { ApiStack } from "./api-stack";
 import { SiteStack } from "./site-stack";
+import { AuthenticationStack } from "./authentication-stack";
 
 const env = {
   account: process.env.CDK_DEFAULT_ACCOUNT,
@@ -13,7 +15,15 @@ export class RaserStage extends cdk.Stage {
     super(scope, id, props);
 
     // Add stacks here that should be cloned for every stage
-    new ApiStack(this, "ApiStack", { env });
+    const authenticationStack = new AuthenticationStack(
+      this,
+      "AuthenticationStack",
+      { env },
+    );
+    new ApiStack(this, "ApiStack", {
+      env,
+      userPool: authenticationStack.userPool,
+    });
     new SiteStack(this, "SiteStack", {});
   }
 }

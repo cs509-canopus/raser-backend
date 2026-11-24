@@ -1,70 +1,103 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
+import { getUserID } from "../auth";
+import { buildResponse } from "../response-builder";
+import { validate } from "../validation";
+import * as z from "zod";
 
-const resultParams: Partial<APIGatewayProxyResult> = {
-  isBase64Encoded: false,
-  headers: {
-    "Access-Control-Allow-Origin": "*",
-  },
-  multiValueHeaders: {},
-};
+const pathSchema = z.object({
+  rubricID: z.uuid(),
+});
+
+const bodySchema = z
+  .object({
+    name: z.string().trim().nonempty().optional(),
+    highQualityThreshold: z.int().nonnegative().optional(),
+    lowQualityThreshold: z.int().nonnegative().optional(),
+  })
+  .refine(
+    (data) => {
+      // Make sure at least one of the values is provided
+      return Object.values(data).some((val) => val !== undefined);
+    },
+    {
+      path: [],
+      error: "At least one field must be provided",
+    },
+  )
+  .refine(
+    (data) => {
+      // If one of the fields is undefined, no check
+      if (
+        data.highQualityThreshold === undefined ||
+        data.lowQualityThreshold === undefined
+      ) {
+        return true;
+      }
+
+      // Both are present: ensure highQualityThreshold > lowQualityThreshold
+      return data.highQualityThreshold > data.lowQualityThreshold;
+    },
+    {
+      path: ["highQualityThreshold"],
+      error: "highQualityThreshold must be greater than lowQualityThreshold",
+    },
+  );
 
 export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
-  // Extract path params
+  // Extract and validate path params
   const pathParams = event.pathParameters || {};
+  const { result: validatedPath, errors: pathErrors } = validate(
+    pathSchema,
+    pathParams,
+  );
 
-  // Make sure rubricID is present in path parameter
-  let error = "";
-  if (!Object.hasOwn(pathParams, "rubricID")) {
-    error = "Missing path parameter: rubricID";
-  }
-
-  // Return 400 early if there is an error
-  if (error != "") {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: error }),
-      ...resultParams,
-    };
-  }
-
-  // Parse request body
-  let args: EditRubricArgs;
+  // Extract and validate body
+  let bodyArgs;
   try {
-    args = JSON.parse(event.body ?? "{}");
+    bodyArgs = JSON.parse(event.body ?? "{}");
   } catch {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: "Invalid JSON request body" }),
-      ...resultParams,
-    };
+    return buildResponse(400, {
+      error: "Invalid JSON body",
+    });
+  }
+  const { result: validatedBody, errors: bodyErrors } = validate(
+    bodySchema,
+    bodyArgs,
+  );
+
+  // Return 400 early on input error
+  if (pathErrors || bodyErrors) {
+    return buildResponse(400, {
+      error: "Input error",
+      pathErrors,
+      bodyErrors,
+    });
+  }
+
+  // Get ID of logged-in user
+  const userID = getUserID(event);
+  if (!userID) {
+    return buildResponse(401, { error: "Unauthorized" });
   }
 
   // Edit the selected rubric
   const result = await editRubric({
-    id: pathParams.rubricID!,
-    ...args,
+    userID,
+    id: validatedPath.rubricID,
+    title: validatedBody.name,
+    lowQualityThreshold: validatedBody.lowQualityThreshold,
+    highQualityThreshold: validatedBody.highQualityThreshold,
   });
 
   // Construct response object
-  let status;
-  let body;
-
   if ("error" in result) {
-    status = result.error.startsWith("Could not find") ? 404 : 400;
-    body = JSON.stringify({ error: result.error });
-  } else {
-    status = 200;
-    body = JSON.stringify(result);
+    const status = result.error.startsWith("Could not find") ? 404 : 400;
+    return buildResponse(status, { error: result.error });
   }
-
-  return {
-    statusCode: status,
-    body,
-    ...resultParams,
-  };
+  return buildResponse(200, result);
 };
 
 export interface EditRubricArgs {
@@ -74,6 +107,7 @@ export interface EditRubricArgs {
 }
 
 export interface EditRubricParams extends EditRubricArgs {
+  userID: string;
   id: string;
 }
 
@@ -96,7 +130,8 @@ interface RubricsSchema {
 }
 
 /**
- * Updates an existing rubric.
+ * Updates an existing rubric owned by the user.
+ * @prop userID - ID of the logged-in user
  * @prop id - ID of the rubric to update
  * @prop title - Updated rubric name
  * @prop lowQualityThreshold - Updated low quality threshold
@@ -122,21 +157,6 @@ export async function editRubric(
       return { error: "title cannot be empty" };
     }
 
-    // Validate threshold values
-    if (
-      args.lowQualityThreshold !== undefined &&
-      (typeof args.lowQualityThreshold !== "number" ||  Number.isFinite(args.lowQualityThreshold))
-    ) {
-      return { error: "lowQualityThreshold must be a valid number between 0 and 100" };
-    }
-
-    if (
-      args.highQualityThreshold !== undefined &&
-      (typeof args.highQualityThreshold !== "number" ||  Number.isFinite(args.highQualityThreshold))
-    ) {
-      return { error: "highQualityThreshold must be a valid number between 0 and 100" };
-    }
-
     // Check that low quality threshold is lower than high quality threshold
     if (
       args.lowQualityThreshold !== undefined &&
@@ -152,11 +172,12 @@ export async function editRubric(
     const existingResult = await query<RubricsSchema>(
       `SELECT low_score_threshold, high_score_threshold
       FROM rubrics
-      WHERE id = $1::uuid`,
-      [args.id],
+      WHERE id = $1::uuid
+        AND designer_id = $2`,
+      [args.id, args.userID],
     );
 
-    // Return error if rubric does not exist
+    // Return error if rubric does not exist under this user
     if (existingResult.rowCount === 0) {
       return {
         error: `Could not find rubric with ID ${args.id}`,
@@ -187,6 +208,7 @@ export async function editRubric(
          low_score_threshold = COALESCE($3, low_score_threshold),
          high_score_threshold = COALESCE($4, high_score_threshold)
        WHERE id = $1::uuid
+         AND designer_id = $5
        RETURNING id, title, low_score_threshold,
                  high_score_threshold`,
       [
@@ -194,6 +216,7 @@ export async function editRubric(
         args.title?.trim() ?? null,
         args.lowQualityThreshold ?? null,
         args.highQualityThreshold ?? null,
+        args.userID,
       ],
     );
 
@@ -218,4 +241,3 @@ export async function editRubric(
     return { error: "Failed to edit rubric" };
   }
 }
-

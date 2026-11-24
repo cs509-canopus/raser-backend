@@ -1,57 +1,51 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
+import { getUserID } from "../auth";
+import { buildResponse } from "../response-builder";
+import { validate } from "../validation";
+import * as z from "zod";
 
-const resultParams: Partial<APIGatewayProxyResult> = {
-  isBase64Encoded: false,
-  headers: {
-    "Access-Control-Allow-Origin": "*",
-  },
-  multiValueHeaders: {},
-};
+const pathSchema = z.object({
+  journalID: z.uuid(),
+});
 
 export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
-  // Extract path params
+  // Extract and validate path params
   const pathParams = event.pathParameters || {};
+  const { result: validatedPath, errors: pathErrors } = validate(
+    pathSchema,
+    pathParams,
+  );
 
-  // Make sure journalID is present in path parameter
-  let error = "";
-  if (!Object.hasOwn(pathParams, "journalID")) {
-    error = "Missing path parameter: journalID";
+  // Return 400 early on input error
+  if (pathErrors) {
+    return buildResponse(400, {
+      error: "Input error",
+      pathErrors,
+    });
   }
 
-  // Return 400 early if there is an error
-  if (error != "") {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: error }),
-      ...resultParams,
-    };
+  // Get ID of logged-in user
+  const userID = getUserID(event);
+  if (!userID) {
+    return buildResponse(401, { error: "Unauthorized" });
   }
 
   // Get the selected journal
-  const result = await getJournal({ journalID: pathParams.journalID! });
+  const result = await getJournal({
+    userID,
+    journalID: validatedPath.journalID,
+  });
 
   // Construct response object
-  let status;
-  let body;
-  if ("error" in result) {
-    status = 400;
-    body = JSON.stringify({ error: result.error });
-  } else {
-    status = 200;
-    body = JSON.stringify(result);
-  }
-
-  return {
-    statusCode: status,
-    body,
-    ...resultParams,
-  };
+  const status = "error" in result ? 400 : 200;
+  return buildResponse(status, result);
 };
 
 export interface GetJournalArgs {
+  userID: string;
   journalID: string;
 }
 
@@ -83,16 +77,16 @@ export async function getJournal(
   args: GetJournalArgs,
 ): Promise<GetJournalResult | GetJournalError> {
   try {
-    // Select entry from the journal table
-    // TODO: add check that owner_id matches the logged in user. If not, return 403 Forbidden
+    // Select entry from the journal table if it is owned by the user
     const journalResult = await query<JournalsSchema>(
       `SELECT id, owner_id, name, description, website_url, cover_image, created_at
        FROM journals
-       WHERE id = $1::uuid`,
-      [args.journalID],
+       WHERE id = $1::uuid
+         AND owner_id = $2`,
+      [args.journalID, args.userID],
     );
 
-    // Return error if the chosen journal does not exist
+    // Return error if the chosen journal does not exist under this user
     if (journalResult.rowCount == 0) {
       return {
         error: `Could not get journal with ID ${args.journalID}`,

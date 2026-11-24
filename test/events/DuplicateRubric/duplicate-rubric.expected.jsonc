@@ -1,0 +1,9 @@
+{
+  "statusCode": 200,
+  "headers": {
+    "Access-Control-Allow-Origin": "*"
+  },
+  "multiValueHeaders": {},
+  "body": "{\"generatedFrom\":\"55555555-0000-4000-8000-000000000001\"}",
+  "isBase64Encoded": false
+}

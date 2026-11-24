@@ -1,6 +1,7 @@
 // POST /issues/{issueID}/papers (#21)
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query as realQuery } from "../db";
+import { getUserID } from "../auth";
 import { insertPaper, journalIdForIssue } from "./shared/papers-repo";
 import {
   errorResult,
@@ -8,20 +9,18 @@ import {
   type QueryFn,
 } from "./shared/types";
 import { parseJsonBody, validateAddPaperBody } from "./shared/validation";
-
-const resultParams: Partial<APIGatewayProxyResult> = {
-  isBase64Encoded: false,
-  headers: {
-    "Access-Control-Allow-Origin": "*",
-  },
-  multiValueHeaders: {},
-};
+import { buildResponse } from "../response-builder";
 
 export async function addPaperCore(
   issueId: string | undefined,
   rawBody: string | null,
+  userId: string | undefined,
   query: QueryFn,
 ): Promise<CoreResult> {
+  if (!userId) {
+    return errorResult(401, "Unauthorized");
+  }
+
   if (!issueId) {
     return errorResult(400, "issueID is required in the path");
   }
@@ -36,9 +35,9 @@ export async function addPaperCore(
     return errorResult(400, validated.error);
   }
 
-  // TODO: no auth yet, should be restricted to the issue's JournalDesigner
   try {
-    const journalId = await journalIdForIssue(query, issueId);
+    // only the owner of the issue's journal can add papers to it
+    const journalId = await journalIdForIssue(query, issueId, userId);
     if (!journalId) {
       return errorResult(404, `Issue ${issueId} not found`);
     }
@@ -68,11 +67,8 @@ export const handler = async (
   const result = await addPaperCore(
     event.pathParameters?.issueID,
     event.body,
+    getUserID(event),
     realQuery,
   );
-  return {
-    statusCode: result.statusCode,
-    body: JSON.stringify(result.body),
-    ...resultParams,
-  };
+  return buildResponse(result.statusCode, result.body);
 };

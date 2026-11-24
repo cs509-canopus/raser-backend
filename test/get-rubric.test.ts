@@ -173,7 +173,7 @@ describe("getRubric", () => {
     });
 
     expect(mockQuery).toHaveBeenCalledWith(
-      expect.stringContaining("designer_id = $2::uuid"),
+      expect.stringContaining("designer_id = $2"),
       [rubricID, anotherUserID],
     );
 

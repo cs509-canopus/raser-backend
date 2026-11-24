@@ -45,6 +45,7 @@
 
               # Local postgres instance
               postgresql
+              openssl
             ]
             ++ pgScripts;
 

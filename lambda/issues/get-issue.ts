@@ -1,57 +1,48 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
+import { getUserID } from "../auth";
+import { buildResponse } from "../response-builder";
+import { validate } from "../validation";
+import * as z from "zod";
 
-const resultParams: Partial<APIGatewayProxyResult> = {
-  isBase64Encoded: false,
-  headers: {
-    "Access-Control-Allow-Origin": "*",
-  },
-  multiValueHeaders: {},
-};
+const pathSchema = z.object({
+  issueID: z.uuid(),
+});
 
 export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
   // Extract path params
   const pathParams = event.pathParameters ?? {};
+  const { result: validatedPath, errors: pathErrors } = validate(
+    pathSchema,
+    pathParams,
+  );
 
-  // Make sure issueID is present in path parameter
-  let error = "";
-  if (!Object.hasOwn(pathParams, "issueID")) {
-    error = "Missing path parameter: issueID";
+  // Return 400 early on input error
+  if (pathErrors) {
+    return buildResponse(400, {
+      error: "Input error",
+      pathErrors,
+    });
   }
 
-  // Return 400 early if there is an error
-  if (error != "") {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: error }),
-      ...resultParams,
-    };
+  // Get ID of logged-in user
+  const userID = getUserID(event);
+  if (!userID) {
+    return buildResponse(401, { error: "Unauthorized" });
   }
 
   // Get the selected issue
-  const result = await getIssue({ issueID: pathParams.issueID! });
+  const result = await getIssue({ userID, issueID: validatedPath.issueID });
 
   // Construct response object
-  let status;
-  let body;
-  if ("error" in result) {
-    status = 400;
-    body = JSON.stringify(result);
-  } else {
-    status = 200;
-    body = JSON.stringify(result);
-  }
-
-  return {
-    statusCode: status,
-    body,
-    ...resultParams,
-  };
+  const status = "error" in result ? 400 : 200;
+  return buildResponse(status, result);
 };
 
 export interface GetIssueArgs {
+  userID: string;
   issueID: string;
 }
 
@@ -80,16 +71,18 @@ export async function getIssue(
   args: GetIssueArgs,
 ): Promise<GetIssueResult | GetIssueError> {
   try {
-    // Select entry from the issue table
-    // TODO: add check that journal.owner_id matches the logged in user. If not, return 403 Forbidden
+    // Select entry from the issue table if its journal is owned by the user
     const issueResult = await query<IssuesSchema>(
-      `SELECT id, journal_id, volume_number, issue_number, created_at
+      `SELECT issues.id, issues.journal_id, issues.volume_number,
+              issues.issue_number, issues.created_at
        FROM issues
-       WHERE id = $1::uuid`,
-      [args.issueID],
+       JOIN journals ON journals.id = issues.journal_id
+       WHERE issues.id = $1::uuid
+         AND journals.owner_id = $2`,
+      [args.issueID, args.userID],
     );
 
-    // Return error if the chosen issue does not exist
+    // Return error if the chosen issue does not exist under this user
     if (issueResult.rowCount == 0) {
       return {
         error: `Could not get issue with ID ${args.issueID}`,

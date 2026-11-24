@@ -4,6 +4,7 @@ import type { QueryFn } from "../../lambda/papers/shared/types";
 const PAPER_ID = "22222222-2222-2222-2222-222222222222";
 const ISSUE_ID = "11111111-1111-1111-1111-111111111111";
 const JOURNAL_ID = "33333333-3333-3333-3333-333333333333";
+const USER_ID = "55555555-5555-5555-5555-555555555555";
 const REVIEW_IDS = ["44444444-4444-4444-4444-444444444444"];
 const PAPER_FIELDS = {
   title: "A Great Paper",
@@ -12,13 +13,15 @@ const PAPER_FIELDS = {
   paper_url: "https://example.com/paper.pdf",
 };
 
+// the paper is only found when it's looked up for its owner (USER_ID)
 function fakeQuery(opts: { found: boolean }): QueryFn {
-  return async (sql: string) => {
+  return async (sql: string, params?: unknown[]) => {
     if (sql.includes("FROM papers p")) {
       return {
-        rows: opts.found
-          ? [{ journal_id: JOURNAL_ID, issue_id: ISSUE_ID, ...PAPER_FIELDS }]
-          : [],
+        rows:
+          opts.found && params?.includes(USER_ID)
+            ? [{ journal_id: JOURNAL_ID, issue_id: ISSUE_ID, ...PAPER_FIELDS }]
+            : [],
       };
     }
     if (sql.includes("FROM reviews")) {
@@ -30,17 +33,47 @@ function fakeQuery(opts: { found: boolean }): QueryFn {
 
 describe("viewPaperCore", () => {
   it("returns 400 when paperID is missing", async () => {
-    const result = await viewPaperCore(undefined, fakeQuery({ found: true }));
+    const result = await viewPaperCore(
+      undefined,
+      USER_ID,
+      fakeQuery({ found: true }),
+    );
     expect(result.statusCode).toBe(400);
   });
 
   it("returns 400 when the paper doesn't exist", async () => {
-    const result = await viewPaperCore(PAPER_ID, fakeQuery({ found: false }));
+    const result = await viewPaperCore(
+      PAPER_ID,
+      USER_ID,
+      fakeQuery({ found: false }),
+    );
+    expect(result.statusCode).toBe(400);
+  });
+
+  it("returns 401 when there is no logged-in user", async () => {
+    const result = await viewPaperCore(
+      PAPER_ID,
+      undefined,
+      fakeQuery({ found: true }),
+    );
+    expect(result.statusCode).toBe(401);
+  });
+
+  it("returns 400 when the paper's journal belongs to someone else", async () => {
+    const result = await viewPaperCore(
+      PAPER_ID,
+      "66666666-6666-6666-6666-666666666666",
+      fakeQuery({ found: true }),
+    );
     expect(result.statusCode).toBe(400);
   });
 
   it("returns 200 with all of the paper's fields and its reviews", async () => {
-    const result = await viewPaperCore(PAPER_ID, fakeQuery({ found: true }));
+    const result = await viewPaperCore(
+      PAPER_ID,
+      USER_ID,
+      fakeQuery({ found: true }),
+    );
     expect(result.statusCode).toBe(200);
     expect(result.body).toEqual({
       journalID: JOURNAL_ID,
@@ -73,7 +106,7 @@ describe("viewPaperCore", () => {
       if (sql.includes("FROM reviews")) return { rows: [] };
       throw new Error(`Unexpected query: ${sql}`);
     };
-    const result = await viewPaperCore(PAPER_ID, query);
+    const result = await viewPaperCore(PAPER_ID, USER_ID, query);
     expect(result.statusCode).toBe(200);
     expect(result.body).toEqual({
       journalID: JOURNAL_ID,

@@ -1,49 +1,48 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
+import { getUserID } from "../auth";
+import { buildResponse } from "../response-builder";
+import { validate } from "../validation";
+import * as z from "zod";
 
-const resultParams: Partial<APIGatewayProxyResult> = {
-  isBase64Encoded: false,
-  headers: {
-    "Access-Control-Allow-Origin": "*",
-  },
-  multiValueHeaders: {},
-};
+const pathSchema = z.object({
+  issueID: z.uuid(),
+});
 
 export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
   // Extract path params
   const pathParams = event.pathParameters || {};
+  const { result: validatedPath, errors: pathErrors } = validate(
+    pathSchema,
+    pathParams,
+  );
 
-  // Make sure issueID is present in path parameter
-  let error = "";
-  if (!Object.hasOwn(pathParams, "issueID")) {
-    error = "Missing path parameter: issueID";
+  // Return 400 early on input error
+  if (pathErrors) {
+    return buildResponse(400, {
+      error: "Input error",
+      pathErrors,
+    });
   }
 
-  // Return 400 early if there is an error
-  if (error != "") {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: error }),
-      ...resultParams,
-    };
+  // Get ID of logged-in user
+  const userID = getUserID(event);
+  if (!userID) {
+    return buildResponse(401, { error: "Unauthorized" });
   }
 
   // Delete the selected issue
-  const result = await deleteIssue({ issueID: pathParams.issueID! });
+  const result = await deleteIssue({ userID, issueID: validatedPath.issueID });
 
   // Construct response object
-  let status = "error" in result ? 400 : 200;
-  const body = JSON.stringify(result);
-  return {
-    statusCode: status,
-    body,
-    ...resultParams,
-  };
+  const status = "error" in result ? 400 : 200;
+  return buildResponse(status, result);
 };
 
 export interface DeleteIssueArgs {
+  userID: string;
   issueID: string;
 }
 
@@ -67,13 +66,16 @@ export async function deleteIssue(
   args: DeleteIssueArgs,
 ): Promise<DeleteIssueResult | DeleteIssueError> {
   try {
-    // Check if the issue exists
+    // Check if the issue exists in a journal owned by the user
     const findIssueResult = await query(
-      `SELECT 1 FROM issues WHERE id = $1::uuid`,
-      [args.issueID],
+      `SELECT 1 FROM issues
+       JOIN journals ON journals.id = issues.journal_id
+       WHERE issues.id = $1::uuid
+         AND journals.owner_id = $2`,
+      [args.issueID, args.userID],
     );
 
-    // Return error if the chosen issue does not exist
+    // Return error if the chosen issue does not exist under this user
     if (findIssueResult.rowCount === 0) {
       return {
         error: `No issue with ID ${args.issueID}`,
@@ -86,7 +88,7 @@ export async function deleteIssue(
        WHERE id = $1::uuid
        AND NOT EXISTS (
          SELECT 1 FROM papers 
-         WHERE papers.issue_id = $1::uuid)
+         WHERE papers.issue_id = $1::uuid AND papers.is_closed = FALSE)
        RETURNING *`,
       [args.issueID],
     );

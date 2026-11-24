@@ -1,0 +1,63 @@
+{
+  "body": "{}",
+  "resource": "/journals/{journalID}/withdraw",
+  "path": "/journals/22222222-0000-4000-8000-000000000001/withdraw",
+  "httpMethod": "POST",
+  "isBase64Encoded": false,
+  "queryStringParameters": null,
+  "multiValueQueryStringParameters": null,
+  "pathParameters": {
+    "journalID": "22222222-0000-4000-8000-000000000001"
+  },
+  "stageVariables": null,
+  "headers": {
+    "Accept": "application/json",
+    "Content-Type": "application/json",
+    "Host": "abcdef1234.execute-api.us-east-1.amazonaws.com",
+    "User-Agent": "Custom User Agent String",
+    "X-Forwarded-For": "127.0.0.1",
+    "X-Forwarded-Port": "443",
+    "X-Forwarded-Proto": "https"
+  },
+  "multiValueHeaders": {
+    "Accept": ["application/json"],
+    "Content-Type": ["application/json"],
+    "Host": ["abcdef1234.execute-api.us-east-1.amazonaws.com"],
+    "User-Agent": ["Custom User Agent String"],
+    "X-Forwarded-For": ["127.0.0.1"],
+    "X-Forwarded-Port": ["443"],
+    "X-Forwarded-Proto": ["https"]
+  },
+  "requestContext": {
+    "accountId": "123456789012",
+    "resourceId": "abc123",
+    "stage": "api",
+    "requestId": "00000000-0000-0000-0000-000000000000",
+    "requestTime": "01/Jan/2026:00:00:00 +0000",
+    "requestTimeEpoch": 1767225600000,
+    "authorizer": {
+      "claims": {
+        "sub": "11111111-0000-4000-8000-0000000000e1",
+        "email": "user@example.com"
+      }
+    },
+    "identity": {
+      "cognitoIdentityPoolId": null,
+      "accountId": null,
+      "cognitoIdentityId": null,
+      "caller": null,
+      "accessKey": null,
+      "sourceIp": "127.0.0.1",
+      "cognitoAuthenticationType": null,
+      "cognitoAuthenticationProvider": null,
+      "userArn": null,
+      "userAgent": "Custom User Agent String",
+      "user": null
+    },
+    "path": "/api/journals/22222222-0000-4000-8000-000000000001/withdraw",
+    "resourcePath": "/journals/{journalID}/withdraw",
+    "httpMethod": "POST",
+    "apiId": "abcdef1234",
+    "protocol": "HTTP/1.1"
+  }
+}
