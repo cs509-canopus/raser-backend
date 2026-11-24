@@ -275,9 +275,36 @@ export class ApiStack extends cdk.Stack {
       new apigateway.LambdaIntegration(listRubricsFunction),
     );
 
+    // GET /rubrics/by-designer
+    const listRubricsByDesignerFunction = this.createLambda({
+      id: "ListRubrisByDesigner",
+      entry: path.join(
+        __dirname,
+        "..",
+        "lambda",
+        "rubrics",
+        "get-rubric-by-designer.ts",
+      ),
+      dbAccess: true,
+    });
+
+    const rubricsByDesignerResource =
+      rubricsResource.addResource("by-designer");
+
+    rubricsByDesignerResource.addMethod(
+      "GET",
+      new apigateway.LambdaIntegration(listRubricsByDesignerFunction),
+    );
+
     const createRubricFunction = this.createLambda({
       id: "CreateRubric",
-      entry: path.join(__dirname, "..", "lambda", "rubrics", "create-rubric.ts"),
+      entry: path.join(
+        __dirname,
+        "..",
+        "lambda",
+        "rubrics",
+        "create-rubric.ts",
+      ),
       dbAccess: true,
     });
 
@@ -289,13 +316,18 @@ export class ApiStack extends cdk.Stack {
 
     const deleteRubricFunction = this.createLambda({
       id: "DeleteRubric",
-      entry: path.join(__dirname, "..", "lambda", "rubrics", "delete-rubric.ts"),
+      entry: path.join(
+        __dirname,
+        "..",
+        "lambda",
+        "rubrics",
+        "delete-rubric.ts",
+      ),
       dbAccess: true,
     });
 
     // /rubrics/{rubricID}
-    const rubricsRubricIDResource =
-      rubricsResource.addResource("{rubricID}");
+    const rubricsRubricIDResource = rubricsResource.addResource("{rubricID}");
 
     rubricsRubricIDResource.addMethod(
       "DELETE",
