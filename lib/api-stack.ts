@@ -305,6 +305,29 @@ export class ApiStack extends cdk.Stack {
       "POST",
       new apigateway.LambdaIntegration(createQuestionFunction),
     );
+
+    const deleteQuestionFunction = this.createLambda({
+      id: "DeleteQuestion",
+      entry: path.join(
+        __dirname,
+        "..",
+        "lambda",
+        "questions",
+        "delete-question.ts",
+      ),
+      dbAccess: true,
+    });
+
+    // DELETE /rubrics/{rubricID}/questions
+    const rubricQuestionResource =
+      rubricsQuestionsResource
+        .addResource("{section}")
+        .addResource("{index}");
+
+    rubricQuestionResource.addMethod(
+      "DELETE",
+      new apigateway.LambdaIntegration(deleteQuestionFunction),
+    );
   
   }
 
