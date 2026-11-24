@@ -76,3 +76,52 @@ export function validateAddQuestionBody(
     },
   };
 }
+
+
+export interface EditQuestionInput {
+  question: string;
+  scoreExplanations: string[];
+}
+
+export function validateEditQuestionBody(
+  body: unknown,
+):
+  | { ok: true; value: EditQuestionInput }
+  | { ok: false; error: string } {
+  if (typeof body !== "object" || body === null) {
+    return { ok: false, error: "Request body must be an object" };
+  }
+
+  const data = body as Record<string, unknown>;
+
+  if (
+    typeof data.question !== "string" ||
+    !data.question.trim()
+  ) {
+    return { ok: false, error: "question is required" };
+  }
+
+  if (
+    !Array.isArray(data.scoreExplanations) ||
+    data.scoreExplanations.length !== 5 ||
+    !data.scoreExplanations.every(
+      (item) => typeof item === "string" && item.trim().length > 0,
+    )
+  ) {
+    return {
+      ok: false,
+      error: "scoreExplanations must contain exactly 5 non-empty strings",
+    };
+  }
+
+  return {
+    ok: true,
+    value: {
+      question: data.question.trim(),
+      scoreExplanations: data.scoreExplanations.map(
+        (item: string) => item.trim(),
+      ),
+    },
+  };
+}
+

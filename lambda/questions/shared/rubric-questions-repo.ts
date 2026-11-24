@@ -80,3 +80,42 @@ export async function deleteRubricQuestion(
 
   return result.rows[0] as unknown as RubricQuestionRow;
 }
+
+
+export async function updateRubricQuestion(
+  query: QueryFn,
+  rubricID: string,
+  section: number,
+  index: number,
+  input: {
+    question: string;
+    scoreExplanations: string[];
+  },
+): Promise<RubricQuestionRow | null> {
+  const result = await query(
+    `
+      UPDATE rubric_questions
+      SET
+        question = $4,
+        score_explanations = $5
+      WHERE rubric_id = $1
+        AND section = $2
+        AND "index" = $3
+      RETURNING *
+    `,
+    [
+      rubricID,
+      section,
+      index,
+      input.question,
+      JSON.stringify(input.scoreExplanations),
+    ],
+  );
+
+  if (result.rows.length === 0) {
+    return null;
+  }
+
+  return result.rows[0] as unknown as RubricQuestionRow;
+}
+
