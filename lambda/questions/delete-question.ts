@@ -1,14 +1,5 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
-import { query as realQuery } from "../db";
-import {
-  rubricExists,
-  deleteRubricQuestion,
-} from "./shared/rubric-questions-repo";
-import {
-  errorResult,
-  type CoreResult,
-  type QueryFn,
-} from "./shared/types";
+import { withTransaction } from "../db";
 
 const resultParams: Partial<APIGatewayProxyResult> = {
   isBase64Encoded: false,
@@ -18,91 +9,125 @@ const resultParams: Partial<APIGatewayProxyResult> = {
   multiValueHeaders: {},
 };
 
-export async function deleteQuestionCore(
-  rubricID: string | undefined,
-  sectionParam: string | undefined,
-  indexParam: string | undefined,
-  query: QueryFn,
-): Promise<CoreResult> {
-  // Validate path parameters
-  if (!rubricID) {
-    return errorResult(400, "rubricID is required in the path");
-  }
-
-  if (sectionParam === undefined || sectionParam === "") {
-    return errorResult(400, "section is required in the path");
-  }
-
-  if (indexParam === undefined || indexParam === "") {
-    return errorResult(400, "index is required in the path");
-  }
-
-  const section = Number(sectionParam);
-  const index = Number(indexParam);
-
-  if (!Number.isSafeInteger(section) || section < 0) {
-    return errorResult(400, "section must be a non-negative integer");
-  }
-
-  if (!Number.isSafeInteger(index) || index < 0) {
-    return errorResult(400, "index must be a non-negative integer");
-  }
-
-  try {
-    // Check whether the rubric exists
-    const exists = await rubricExists(query, rubricID);
-
-    if (!exists) {
-      return errorResult(404, `Rubric ${rubricID} not found`);
-    }
-
-    // Delete the selected question
-    const row = await deleteRubricQuestion(
-      query,
-      rubricID,
-      section,
-      index,
-    );
-
-    if (!row) {
-      return errorResult(
-        404,
-        `Question not found in rubric ${rubricID}, section ${section}, index ${index}`,
-      );
-    }
-
-    return {
-      statusCode: 200,
-      body: {
-        rubricID: row.rubric_id,
-        section: row.section,
-        index: row.index,
-        question: row.question,
-        scoreExplanations: JSON.parse(
-          row.score_explanations ?? "[]",
-        ),
-      },
-    };
-  } catch (err) {
-    console.error("deleteQuestionCore failed", err);
-
-    return errorResult(500, `Failed to delete question: ${err}`);
-  }
-}
-
 export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
-  const result = await deleteQuestionCore(
-    event.pathParameters?.rubricID,
-    event.pathParameters?.section,
-    event.pathParameters?.index,
-    realQuery,
-  );
+  
+  // Extract path params
+  const pathParams = event.pathParameters || {};
+
+  // Check required path parameters are present
+  let error = "";
+  if (!Object.hasOwn(pathParams, "rubricID")) {
+    error = "Missing path parameter: rubricID";
+  } else if (!Object.hasOwn(pathParams, "section")) {
+    error = "Missing path parameter: section";
+  } else if (!Object.hasOwn(pathParams, "index")) {
+    error = "Missing path parameter: index";
+  }
+
+  // Return 400 early if there is an error
+  if (error != "") {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ error: error }),
+      ...resultParams,
+    };
+  }
+
+  // Delete the selected rubric question
+  const result = await deleteRubricQuestion({
+    rubricID: pathParams.rubricID!,
+    section: Number(pathParams.section),
+    index: Number(pathParams.index),
+  });
+
+  // Construct response object
+  let status;
+  let body;
+  if ("error" in result) {
+    status = result.error.startsWith("Could not find") ? 404 : 500;
+    body = JSON.stringify({ error: result.error });
+  } else {
+    status = 200;
+    body = JSON.stringify(result);
+  }
 
   return {
-    statusCode: result.statusCode,
-    body: JSON.stringify(result.body),
+    statusCode: status,
+    body,
     ...resultParams,
   };
 };
+
+export interface DeleteQuestionArgs {
+  rubricID: string;
+  section: number;
+  index: number;
+}
+
+export interface DeleteQuestionResult {
+  rubricID: string;
+  section: number;
+  index: number;
+}
+
+export interface DeleteQuestionError {
+  error: string;
+}
+
+/**
+ * Deletes a rubric question.
+ * @prop rubricID - ID of the rubric containing the question
+ * @prop section - Section containing the question
+ * @prop index - Index of the question to delete
+ * @returns deleted question section and index with rubricID, or error if deletion fails
+ */
+export async function deleteRubricQuestion(
+  args: DeleteQuestionArgs,
+): Promise<DeleteQuestionResult | DeleteQuestionError> {
+  try {
+    return await withTransaction(async (client) => {
+      // Check whether the rubric exists
+      const rubricResult = await client.query(
+        `SELECT id FROM rubrics
+         WHERE id = $1::uuid
+         FOR UPDATE`,
+        [args.rubricID],
+      );
+
+      // Return error if the chosen rubric does not exist
+      if (rubricResult.rowCount === 0) {
+        return {
+          error: `Could not find rubric with ID ${args.rubricID}`,
+        };
+      }
+
+      // Delete the selected rubric question
+      const questionResult = await client.query(
+        `DELETE FROM "rubric_questions"
+         WHERE rubric_id = $1::uuid
+         AND section = $2
+         AND question_index = $3
+         RETURNING rubric_id`,
+        [args.rubricID, args.section, args.index],
+      );
+
+      // Return error if the question does not exist
+      if (questionResult.rowCount === 0) {
+        return {
+          error: `Could not find question at section ${args.section}, index ${args.index} in rubric ${args.rubricID}`,
+        };
+      }
+
+      return {
+        rubricID: args.rubricID,
+        section: args.section,
+        index: args.index,
+      };
+    });
+  } catch (err) {
+    console.error("deleteRubricQuestion failed", err);
+    return { error: `Failed to delete rubric question: ${err}` };
+  }
+}
