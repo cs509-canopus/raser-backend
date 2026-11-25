@@ -34,6 +34,8 @@ export const handler = async (
   if (error === "") {
     if (!Object.hasOwn(bodyArgs, "section")) {
       error = "Missing body parameter: section";
+    } else if (!Object.hasOwn(bodyArgs, "index")) {
+      error = "Missing body parameter: index";
     } else if (!Object.hasOwn(bodyArgs, "question")) {
       error = "Missing body parameter: question";
     } else if (!Object.hasOwn(bodyArgs, "scoreExplanations")) {
@@ -79,6 +81,7 @@ export const handler = async (
   const result = await createRubricQuestion({
     rubricID: pathParams.rubricID!,
     section: bodyArgs.section,
+    index: bodyArgs.section,
     question: bodyArgs.question.trim(),
     scoreExplanations: bodyArgs.scoreExplanations,
   });
@@ -105,6 +108,7 @@ export const handler = async (
 export interface CreateQuestionArgs {
   rubricID: string;
   section: number;
+  index: number;
   question: string;
   scoreExplanations: string[];
 }
@@ -160,14 +164,16 @@ export async function createRubricQuestion(
       `INSERT INTO "rubric_questions" (
          rubric_id,
          section,
+         index,
          question,
          score_explanations
        )
-       VALUES ($1::uuid, $2, $3, $4::jsonb)
+       VALUES ($1::uuid, $2, $3, $4, $5::jsonb)
        RETURNING *`,
       [
         args.rubricID,
         args.section,
+        args.index,
         args.question,
         JSON.stringify(args.scoreExplanations),
       ],
