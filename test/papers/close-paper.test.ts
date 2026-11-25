@@ -2,6 +2,7 @@ import { closePaperCore } from "../../lambda/papers/close-paper";
 import type { QueryFn } from "../../lambda/papers/shared/types";
 
 const PAPER_ID = "22222222-2222-2222-2222-222222222222";
+const USER_ID = "55555555-5555-5555-5555-555555555555";
 
 function openPaperRow(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -20,14 +21,33 @@ function openPaperRow(overrides: Partial<Record<string, unknown>> = {}) {
 describe("closePaperCore", () => {
   it("returns 400 when paperID is missing", async () => {
     const query: QueryFn = async () => ({ rows: [] });
-    const result = await closePaperCore(undefined, query);
+    const result = await closePaperCore(undefined, USER_ID, query);
     expect(result.statusCode).toBe(400);
   });
 
   it("returns 400 when the paper doesn't exist", async () => {
     const query: QueryFn = async () => ({ rows: [] });
-    const result = await closePaperCore(PAPER_ID, query);
+    const result = await closePaperCore(PAPER_ID, USER_ID, query);
     expect(result.statusCode).toBe(400);
+  });
+
+  it("returns 401 when there is no logged-in user", async () => {
+    const query: QueryFn = async () => ({ rows: [openPaperRow()] });
+    const result = await closePaperCore(PAPER_ID, undefined, query);
+    expect(result.statusCode).toBe(401);
+  });
+
+  it("looks the paper up for the logged-in user", async () => {
+    const lookups: unknown[][] = [];
+    const query: QueryFn = async (sql, params) => {
+      if (sql.includes("FROM papers")) lookups.push(params ?? []);
+      return { rows: [] };
+    };
+
+    const result = await closePaperCore(PAPER_ID, USER_ID, query);
+
+    expect(result.statusCode).toBe(400);
+    expect(lookups).toEqual([[PAPER_ID, USER_ID]]);
   });
 
   it("returns 400 when the paper has an incomplete review", async () => {
@@ -36,7 +56,7 @@ describe("closePaperCore", () => {
       return { rows: [openPaperRow()] };
     };
 
-    const result = await closePaperCore(PAPER_ID, query);
+    const result = await closePaperCore(PAPER_ID, USER_ID, query);
 
     expect(result.statusCode).toBe(400);
     expect(result.body).toEqual({ error: "Paper is currently under review" });
@@ -51,7 +71,7 @@ describe("closePaperCore", () => {
       return { rows: [openPaperRow()] };
     };
 
-    const result = await closePaperCore(PAPER_ID, query);
+    const result = await closePaperCore(PAPER_ID, USER_ID, query);
 
     expect(result.statusCode).toBe(200);
     expect(result.body).toEqual({ paperID: PAPER_ID });
@@ -66,7 +86,7 @@ describe("closePaperCore", () => {
       return { rows: [openPaperRow({ is_closed: true })] };
     };
 
-    const result = await closePaperCore(PAPER_ID, query);
+    const result = await closePaperCore(PAPER_ID, USER_ID, query);
 
     expect(result.statusCode).toBe(200);
     expect(result.body).toEqual({ paperID: PAPER_ID });

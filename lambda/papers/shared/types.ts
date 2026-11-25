@@ -43,7 +43,7 @@ export type QueryFn = (
 // core result before it becomes an APIGatewayProxyResult, keeps tests off aws-lambda types
 export interface CoreResult {
   statusCode: number;
-  body: unknown;
+  body: object;
 }
 
 export function errorResult(statusCode: number, message: string): CoreResult {

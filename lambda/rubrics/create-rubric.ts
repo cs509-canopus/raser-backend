@@ -1,100 +1,65 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
-import { query } from "../db";
+import { withTransaction } from "../db";
 import { DatabaseError } from "pg";
+import { getUserID } from "../auth";
+import { buildResponse } from "../response-builder";
+import { ensureRubricDesigner } from "../users";
+import { validate } from "../validation";
+import * as z from "zod";
 
-const resultParams: Partial<APIGatewayProxyResult> = {
-  isBase64Encoded: false,
-  headers: {
-    "Access-Control-Allow-Origin": "*",
-  },
-  multiValueHeaders: {},
-};
+const bodySchema = z
+  .object({
+    name: z.string().trim().nonempty(),
+    highQualityThreshold: z.int().nonnegative(),
+    lowQualityThreshold: z.int().nonnegative(),
+  })
+  .refine((data) => data.highQualityThreshold > data.lowQualityThreshold, {
+    path: ["highQualityThreshold"],
+    error: "highQualityThreshold must be greater than lowQualityThreshold",
+  });
 
 export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
-  const bodyArgs = JSON.parse(event.body ?? "{}");
+  // Extract and validate body
+  let bodyArgs;
+  try {
+    bodyArgs = JSON.parse(event.body ?? "{}");
+  } catch {
+    return buildResponse(400, {
+      error: "Invalid JSON body",
+    });
+  }
+  const { result: validatedBody, errors: bodyErrors } = validate(
+    bodySchema,
+    bodyArgs,
+  );
 
-  // Make sure body has required parameters
-  let error = "";
-
-  if (!Object.hasOwn(bodyArgs, "name")) {
-    error = "Missing body parameter: name";
-  } else if (!Object.hasOwn(bodyArgs, "highQualityThreshold")) {
-    error = "Missing body parameter: highQualityThreshold";
-  } else if (!Object.hasOwn(bodyArgs, "lowQualityThreshold")) {
-    error = "Missing body parameter: lowQualityThreshold";
+  // Return 400 early on input error
+  if (bodyErrors) {
+    return buildResponse(400, {
+      error: "Input error",
+      bodyErrors,
+    });
   }
 
-  // Make sure name is a non-empty string
-  if (
-    error === "" &&
-    (typeof bodyArgs.name !== "string" || bodyArgs.name.trim() === "")
-  ) {
-    error = "name must be a non-empty string";
+  // Get ID of logged-in user
+  const userID = getUserID(event);
+  if (!userID) {
+    return buildResponse(401, { error: "Unauthorized" });
   }
 
-  // Make sure thresholds are numbers
-  const highQualityThreshold = bodyArgs.highQualityThreshold;
-  const lowQualityThreshold = bodyArgs.lowQualityThreshold;
-
-  if (error === "") {
-    if (
-      typeof highQualityThreshold !== "number" ||
-      typeof lowQualityThreshold !== "number"
-    ) {
-      error = "highQualityThreshold and lowQualityThreshold must be numbers";
-    } else if (
-      !Number.isFinite(highQualityThreshold) ||
-      !Number.isFinite(lowQualityThreshold)
-    ) {
-      error = "Thresholds must be valid numbers";
-    } else if (
-      highQualityThreshold < 0 ||
-      highQualityThreshold > 100 ||
-      lowQualityThreshold < 0 ||
-      lowQualityThreshold > 100
-    ) {
-      error = "Thresholds must be between 0 and 100";
-    } else if (lowQualityThreshold >= highQualityThreshold) {
-      error = "lowQualityThreshold must be less than highQualityThreshold";
-    }
-  }
-
-  // Return 400 early if there is an error
-  if (error !== "") {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error }),
-      ...resultParams,
-    };
-  }
-
-  // Create rubric (Test user)
+  // Create rubric owned by the logged-in user
   const result = await createRubric({
-    title: bodyArgs.name.trim(),
-    designer: "ffffffff-ffff-ffff-ffff-ffffffffffff",
-    highQualityThreshold,
-    lowQualityThreshold,
+    title: validatedBody.name,
+    designer: userID,
+    highQualityThreshold: validatedBody.highQualityThreshold,
+    lowQualityThreshold: validatedBody.lowQualityThreshold,
   });
 
   // Construct response object
-  let status;
-  let body;
-
-  if ("error" in result) {
-    status = 400;
-    body = JSON.stringify(result);
-  } else {
-    status = 201;
-    body = JSON.stringify(result);
-  }
-
-  return {
-    statusCode: status,
-    body,
-    ...resultParams,
-  };
+  const status = "error" in result ? 400 : 201;
+  return buildResponse(status, result);
 };
 
 export interface CreateRubricArgs {
@@ -134,22 +99,27 @@ export async function createRubric(
 ): Promise<CreateRubricResult | CreateRubricError> {
   try {
     // Create rubric entry and return the created row
-    const createRubricResult = await query<RubricsSchema>(
-      `INSERT INTO rubrics (
-         title,
-         designer_id,
-         high_score_threshold,
-         low_score_threshold
-       )
-       VALUES ($1, $2, $3::integer, $4::integer)
-       RETURNING *`,
-      [
-        args.title,
-        args.designer,
-        args.highQualityThreshold,
-        args.lowQualityThreshold,
-      ],
-    );
+    const createRubricResult = await withTransaction(async (client) => {
+      // A new user has no database rows until they create something
+      await ensureRubricDesigner(client, args.designer);
+
+      return client.query<RubricsSchema>(
+        `INSERT INTO rubrics (
+           title,
+           designer_id,
+           high_score_threshold,
+           low_score_threshold
+         )
+         VALUES ($1, $2, $3::integer, $4::integer)
+         RETURNING *`,
+        [
+          args.title,
+          args.designer,
+          args.highQualityThreshold,
+          args.lowQualityThreshold,
+        ],
+      );
+    });
 
     // Return error if rubric was not created
     if (createRubricResult.rowCount === 0) {
@@ -187,4 +157,3 @@ export async function createRubric(
     }
   }
 }
-

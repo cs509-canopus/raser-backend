@@ -1,13 +1,7 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
-
-const resultParams: Partial<APIGatewayProxyResult> = {
-  isBase64Encoded: false,
-  headers: {
-    "Access-Control-Allow-Origin": "*",
-  },
-  multiValueHeaders: {},
-};
+import { getUserID } from "../auth";
+import { buildResponse } from "../response-builder";
 
 export const handler = async (
   event: APIGatewayProxyEvent,
@@ -16,36 +10,30 @@ export const handler = async (
   const queryParams = event.queryStringParameters || {};
   let query = queryParams.query;
 
-  // Get all journals
-  const result = await listJournals({ query });
-
-  // Construct response object
-  let status;
-  let body;
-  if (result.error !== undefined) {
-    // Database error
-    status = 500;
-    body = JSON.stringify({ error: result.error });
-  } else {
-    status = 200;
-    body = JSON.stringify({ journals: result.journals });
+  // Get ID of logged-in user
+  const userID = getUserID(event);
+  if (!userID) {
+    return buildResponse(401, { error: "Unauthorized" });
   }
 
-  return {
-    statusCode: status,
-    body: body,
-    ...resultParams,
-  };
+  // Get all journals owned by the logged-in user
+  const result = await listJournals({ userID, query });
+
+  // Construct response object
+  const status = "error" in result ? 500 : 200;
+  return buildResponse(status, result);
 };
 
 export interface ListJournalsArgs {
+  userID: string;
   query?: string;
 }
 
 export interface JournalInfo {
   id: string;
   name: string;
-  description: string;
+  description: string | null;
+  coverImage: string | null;
   issueCount: number;
 }
 
@@ -55,7 +43,8 @@ export interface ListJournalsResult {
 }
 
 /**
- * Returns a list all journals
+ * Returns a list of all journals owned by the user
+ * @prop userID - ID of the logged-in user
  * @prop query - String to match journals against
  * @returns list of `journals`, or `error` on database error
  */
@@ -64,21 +53,24 @@ export async function listJournals(
 ): Promise<ListJournalsResult> {
   const q = args.query?.trim();
   try {
-    // TODO: add WHERE owner_id = {id of the logged-in user}
     const result = await query<JournalInfo>(
       `SELECT 
         journals.id, 
         journals.name, 
         journals.description, 
-        COUNT(issues.id) as issueCount
+        journals.cover_image AS "coverImage",
+        COUNT(issues.id) AS "issueCount"
        FROM journals
        LEFT JOIN issues ON issues.journal_id = journals.id
-       WHERE $1::text IS NULL
-          OR name ILIKE '%' || $1 || '%'
-          OR description ILIKE '%' || $1 || '%'
+       WHERE journals.owner_id = $2
+         AND (
+           $1::text IS NULL
+           OR name ILIKE '%' || $1 || '%'
+           OR description ILIKE '%' || $1 || '%'
+         )
        GROUP BY journals.id 
        ORDER BY name;`,
-      [q || null],
+      [q || null, args.userID],
     );
 
     return { journals: result.rows };

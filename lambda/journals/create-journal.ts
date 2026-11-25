@@ -1,41 +1,57 @@
 // POST /journals - issue #13
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
-import { query } from "../db";
+import { withTransaction } from "../db";
+import { getUserID } from "../auth";
+import { buildResponse } from "../response-builder";
+import { ensureJournalDesigner } from "../users";
+import { validate } from "../validation";
+import * as z from "zod";
 
-const resultParams: Partial<APIGatewayProxyResult> = {
-  isBase64Encoded: false,
-  headers: {
-    "Access-Control-Allow-Origin": "*",
-  },
-  multiValueHeaders: {},
-};
+const bodySchema = z.object({
+  name: z.string().nonempty(),
+  description: z.string().optional(),
+  websiteUrl: z.url().optional(),
+  coverImageUrl: z.url().optional(),
+});
 
 export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
-  const bodyArgs = JSON.parse(event.body ?? "{}");
-
-  // make sure body has "name" parameter
-  let error = "";
-  if (!Object.hasOwn(bodyArgs, "name")) {
-    error = "Missing body parameter: name";
+  // Extract and validate body
+  let bodyArgs;
+  try {
+    bodyArgs = JSON.parse(event.body ?? "{}");
+  } catch {
+    return buildResponse(400, {
+      error: "Invalid JSON body",
+    });
   }
-  // return 400 early if there is an error
-  if (error != "") {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: error }),
-      ...resultParams,
-    };
+  const { result: validatedBody, errors: bodyErrors } = validate(
+    bodySchema,
+    bodyArgs,
+  );
+
+  // return 400 early on input error
+  if (bodyErrors) {
+    return buildResponse(400, {
+      error: "Input error",
+      bodyErrors,
+    });
   }
 
-  // create the journal
-  let name = bodyArgs.name;
-  let description = bodyArgs.description ?? null;
-  let websiteUrl = bodyArgs.websiteUrl ?? null;
-  let coverImageUrl = bodyArgs.coverImageUrl ?? null;
+  // Get ID of logged-in user
+  const userID = getUserID(event);
+  if (!userID) {
+    return buildResponse(401, { error: "Unauthorized" });
+  }
 
+  // Create the journal
+  let name = validatedBody.name;
+  let description = validatedBody.description;
+  let websiteUrl = validatedBody.websiteUrl;
+  let coverImageUrl = validatedBody.coverImageUrl;
   const result = await createJournal({
+    ownerID: userID,
     name,
     description,
     websiteUrl,
@@ -43,24 +59,12 @@ export const handler = async (
   });
 
   // construct response object
-  let status;
-  let body;
-  if ("error" in result) {
-    status = 400;
-    body = JSON.stringify(result);
-  } else {
-    status = 201;
-    body = JSON.stringify(result);
-  }
-
-  return {
-    statusCode: status,
-    body,
-    ...resultParams,
-  };
+  const status = "error" in result ? 400 : 201;
+  return buildResponse(status, result);
 };
 
 export interface CreateJournalArgs {
+  ownerID: string;
   name: string;
   description?: string;
   websiteUrl?: string;
@@ -95,13 +99,23 @@ export async function createJournal(
 ): Promise<CreateJournalResult | CreateJournalError> {
   // create journal entry and return the created row
   try {
-    // TODO: replace hardcoded owner_id in next iteration with actual user ID from auth context
-    const createJournalResult = await query<JournalSchema>(
-      `INSERT INTO journals (owner_id, name, description, website_url, cover_image)
-             VALUES ('ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid, $1::text, $2, $3, $4) 
-             RETURNING *`,
-      [args.name, args.description, args.websiteUrl, args.coverImageUrl],
-    );
+    const createJournalResult = await withTransaction(async (client) => {
+      // A new user has no database rows until they create something
+      await ensureJournalDesigner(client, args.ownerID);
+
+      return client.query<JournalSchema>(
+        `INSERT INTO journals (owner_id, name, description, website_url, cover_image)
+         VALUES ($1, $2::text, $3, $4, $5)
+         RETURNING *`,
+        [
+          args.ownerID,
+          args.name,
+          args.description,
+          args.websiteUrl,
+          args.coverImageUrl,
+        ],
+      );
+    });
 
     // return error if journal was not created
     if (createJournalResult.rowCount === 0) {

@@ -6,7 +6,8 @@
   "isBase64Encoded": false,
   "queryStringParameters": {
     // Query string (?key=value). Use null if there are none
-    "<key>": "<value>"
+    // All params must be strings
+    "<key>": "<string-value>"
     // Other query parameters ...
   },
   "multiValueQueryStringParameters": {

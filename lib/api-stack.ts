@@ -1,5 +1,6 @@
 import * as cdk from "aws-cdk-lib";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
+import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
@@ -9,13 +10,17 @@ import { Construct } from "constructs";
 import path from "path";
 import { SHARED_LAMBDA_SG_NAME, SHARED_VPC_NAME } from "./config";
 
+export interface ApiStackProps extends cdk.StackProps {
+  userPool: cognito.IUserPool;
+}
+
 export class ApiStack extends cdk.Stack {
   private readonly db: IDatabaseInstance;
   private readonly dbEnvironment;
   private readonly vpc: ec2.IVpc;
   private readonly lambdaSg: ec2.ISecurityGroup;
 
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
 
     // Get the name of this stage
@@ -42,9 +47,20 @@ export class ApiStack extends cdk.Stack {
       NODE_EXTRA_CA_CERTS: "/var/runtime/ca-cert.pem",
     };
 
+    const authorizer = new apigateway.CognitoUserPoolsAuthorizer(
+      this,
+      "RaserAuthorizer",
+      { cognitoUserPools: [props.userPool] },
+    );
+
     // Declare tutorial-api API gateway
     const api = new apigateway.RestApi(this, "RaserApi", {
       restApiName: `${stageName.toLowerCase()}-RaserApi`,
+
+      defaultMethodOptions: {
+        authorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+      },
 
       // Enable CORS for all methods and all origins on all resources in the API
       defaultCorsPreflightOptions: {
@@ -54,6 +70,15 @@ export class ApiStack extends cdk.Stack {
 
       // Make URLs end in /api/ instead of /prod/
       deployOptions: { stageName: "api" },
+    });
+
+    api.addGatewayResponse("Default4xx", {
+      type: apigateway.ResponseType.DEFAULT_4XX,
+      responseHeaders: { "Access-Control-Allow-Origin": "'*'" },
+    });
+    api.addGatewayResponse("Default5xx", {
+      type: apigateway.ResponseType.DEFAULT_5XX,
+      responseHeaders: { "Access-Control-Allow-Origin": "'*'" },
     });
 
     const echoFunction = new NodejsFunction(this, "Echo", {
@@ -66,6 +91,7 @@ export class ApiStack extends cdk.Stack {
     echoResource.addMethod(
       "POST",
       new apigateway.LambdaIntegration(echoFunction),
+      { authorizationType: apigateway.AuthorizationType.NONE }, // public
     );
 
     const listJournalsFunction = this.createLambda({
@@ -249,9 +275,36 @@ export class ApiStack extends cdk.Stack {
       new apigateway.LambdaIntegration(listRubricsFunction),
     );
 
+    // GET /rubrics/by-designer
+    const listRubricsByDesignerFunction = this.createLambda({
+      id: "ListRubrisByDesigner",
+      entry: path.join(
+        __dirname,
+        "..",
+        "lambda",
+        "rubrics",
+        "get-rubric-by-designer.ts",
+      ),
+      dbAccess: true,
+    });
+
+    const rubricsByDesignerResource =
+      rubricsResource.addResource("by-designer");
+
+    rubricsByDesignerResource.addMethod(
+      "GET",
+      new apigateway.LambdaIntegration(listRubricsByDesignerFunction),
+    );
+
     const createRubricFunction = this.createLambda({
       id: "CreateRubric",
-      entry: path.join(__dirname, "..", "lambda", "rubrics", "create-rubric.ts"),
+      entry: path.join(
+        __dirname,
+        "..",
+        "lambda",
+        "rubrics",
+        "create-rubric.ts",
+      ),
       dbAccess: true,
     });
 
@@ -263,13 +316,18 @@ export class ApiStack extends cdk.Stack {
 
     const deleteRubricFunction = this.createLambda({
       id: "DeleteRubric",
-      entry: path.join(__dirname, "..", "lambda", "rubrics", "delete-rubric.ts"),
+      entry: path.join(
+        __dirname,
+        "..",
+        "lambda",
+        "rubrics",
+        "delete-rubric.ts",
+      ),
       dbAccess: true,
     });
 
     // /rubrics/{rubricID}
-    const rubricsRubricIDResource =
-      rubricsResource.addResource("{rubricID}");
+    const rubricsRubricIDResource = rubricsResource.addResource("{rubricID}");
 
     rubricsRubricIDResource.addMethod(
       "DELETE",
@@ -299,6 +357,99 @@ export class ApiStack extends cdk.Stack {
       "GET",
       new apigateway.LambdaIntegration(getRubricsFunction),
     );
+
+    const deprecateRubricFunction = this.createLambda({
+      id: "DeprecateRubric",
+      entry: path.join(__dirname, "..", "lambda", "rubrics", "deprecate-rubric.ts"),
+      dbAccess: true,
+    });
+
+    // POST /rubrics/{rubricID}/deprecate
+    const rubricsRubricIDDeprecate = rubricsRubricIDResource.addResource("deprecate")
+    rubricsRubricIDDeprecate.addMethod(
+      "POST",
+      new apigateway.LambdaIntegration(deprecateRubricFunction),
+    );
+
+    const duplicateRubricFunction = this.createLambda({
+      id: "DuplicateRubric",
+      entry: path.join(__dirname, "..", "lambda", "rubrics", "duplicate-rubric.ts"),
+      dbAccess: true,
+    });
+
+    // POST /rubrics/{rubricID}/duplicate
+    const rubricsRubricIDDuplicate = rubricsRubricIDResource.addResource("duplicate")
+    rubricsRubricIDDuplicate.addMethod(
+      "POST",
+      new apigateway.LambdaIntegration(duplicateRubricFunction),
+    );
+    // QUESTION ENDPOINTS
+
+    const createQuestionFunction = this.createLambda({
+      id: "CreateQuestion",
+      entry: path.join(
+        __dirname,
+        "..",
+        "lambda",
+        "questions",
+        "create-question.ts",
+      ),
+      dbAccess: true,
+    });
+
+    // POST /rubrics/{rubricID}/questions
+    const rubricsQuestionsResource =
+      rubricsRubricIDResource.addResource("questions");
+
+    rubricsQuestionsResource.addMethod(
+      "POST",
+      new apigateway.LambdaIntegration(createQuestionFunction),
+    );
+
+    const deleteQuestionFunction = this.createLambda({
+      id: "DeleteQuestion",
+      entry: path.join(
+        __dirname,
+        "..",
+        "lambda",
+        "questions",
+        "delete-question.ts",
+      ),
+      dbAccess: true,
+    });
+
+    const editQuestionFunction = this.createLambda({
+      id: "EditQuestion",
+      entry: path.join(
+        __dirname,
+        "..",
+        "lambda",
+        "questions",
+        "edit-question.ts",
+      ),
+      dbAccess: true,
+    });
+
+    const rubricQuestionResource =
+      rubricsQuestionsResource
+        .addResource("{section}")
+        .addResource("{index}");
+
+    // DELETE /rubrics/{rubricID}/questions
+
+    rubricQuestionResource.addMethod(
+      "DELETE",
+      new apigateway.LambdaIntegration(deleteQuestionFunction),
+    );
+
+    // PATCH /rubrics/{rubricID}/questions
+
+    rubricQuestionResource.addMethod(
+      "PATCH",
+      new apigateway.LambdaIntegration(editQuestionFunction),
+    );
+
+  
   }
 
   private createLambda({

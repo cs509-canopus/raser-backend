@@ -1,82 +1,74 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { query } from "../db";
 import { DatabaseError } from "pg";
+import { getUserID } from "../auth";
+import { buildResponse } from "../response-builder";
+import { validate } from "../validation";
+import * as z from "zod";
 
-const resultParams: Partial<APIGatewayProxyResult> = {
-  isBase64Encoded: false,
-  headers: {
-    "Access-Control-Allow-Origin": "*",
-  },
-  multiValueHeaders: {},
-};
+const pathSchema = z.object({
+  journalID: z.uuid(),
+});
+
+const bodySchema = z.object({
+  volumeNumber: z.int().positive(),
+  issueNumber: z.int().positive(),
+});
 
 export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
-  const bodyArgs = JSON.parse(event.body ?? "{}");
+  // Extract and validate path params
   const pathParams = event.pathParameters ?? {};
+  const { result: validatedPath, errors: pathErrors } = validate(
+    pathSchema,
+    pathParams,
+  );
 
-  // Makes sure body has "volumeNumber" and "issueNumber" parameters
-  let error = "";
-  if (
-    !Object.hasOwn(bodyArgs, "volumeNumber") &&
-    !Object.hasOwn(bodyArgs, "issueNumber")
-  ) {
-    error = "Missing body parameters: volumeNumber and issueNumber";
-  } else if (!Object.hasOwn(bodyArgs, "volumeNumber")) {
-    error = "Missing body parameter: volumeNumber";
-  } else if (!Object.hasOwn(bodyArgs, "issueNumber")) {
-    error = "Missing body parameter: issueNumber";
+  // Extract and validate body
+  let bodyArgs;
+  try {
+    bodyArgs = JSON.parse(event.body ?? "{}");
+  } catch {
+    return buildResponse(400, {
+      error: "Invalid JSON body",
+    });
+  }
+  const { result: validatedBody, errors: bodyErrors } = validate(
+    bodySchema,
+    bodyArgs,
+  );
+
+  // Return 400 early on input error
+  if (pathErrors || bodyErrors) {
+    return buildResponse(400, {
+      error: "Input error",
+      pathErrors,
+      bodyErrors,
+    });
   }
 
-  // Make sure path has "journalID"
-  if (!Object.hasOwn(pathParams, "journalID")) {
-    error = "Missing path parameter: journalID";
-  }
-
-  // Make sure the body parameters are integers
-  let volumeNumber = bodyArgs.volumeNumber;
-  let issueNumber = bodyArgs.issueNumber;
-  if (!Number.isInteger(volumeNumber) && !Number.isInteger(issueNumber)) {
-    error = "volumeNumber and issueNumber must be integers";
-  } else if (!Number.isInteger(volumeNumber)) {
-    error = "volumeNumber must be an integer";
-  } else if (!Number.isInteger(issueNumber)) {
-    error = "issueNumber must be an integer";
-  }
-
-  // Return 400 early if there is an error
-  if (error != "") {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: error }),
-      ...resultParams,
-    };
+  // Get ID of logged-in user
+  const userID = getUserID(event);
+  if (!userID) {
+    return buildResponse(401, { error: "Unauthorized" });
   }
 
   // Create the issue
-  let journalID = pathParams.journalID!;
-  const result = await createIssue({ journalID, volumeNumber, issueNumber });
+  const result = await createIssue({
+    userID,
+    journalID: validatedPath.journalID,
+    volumeNumber: validatedBody.volumeNumber,
+    issueNumber: validatedBody.issueNumber,
+  });
 
   // Construct response object
-  let status;
-  let body;
-  if ("error" in result) {
-    status = 400;
-    body = JSON.stringify(result);
-  } else {
-    status = 201;
-    body = JSON.stringify(result);
-  }
-
-  return {
-    statusCode: status,
-    body,
-    ...resultParams,
-  };
+  const status = "error" in result ? 400 : 201;
+  return buildResponse(status, result);
 };
 
 export interface CreateIssueArgs {
+  userID: string;
   journalID: string;
   volumeNumber: number;
   issueNumber: number;
@@ -106,19 +98,22 @@ export async function createIssue(
   args: CreateIssueArgs,
 ): Promise<CreateIssueResult | CreateIssueError> {
   try {
-    // Create issue entry and return the created row
-    // TODO: add check that journal.owner_id matches the logged in user. If not, return 403 Forbidden
+    // Create issue entry (only if the journal is owned by the user) and return the created row
     const createIssueResult = await query<IssuesSchema>(
       `INSERT INTO issues (journal_id, volume_number, issue_number)
-       VALUES ($1::uuid, $2::integer, $3::integer)
+       SELECT $1::uuid, $2::integer, $3::integer
+       WHERE EXISTS (
+         SELECT 1 FROM journals
+         WHERE id = $1::uuid AND owner_id = $4
+       )
        RETURNING *`,
-      [args.journalID, args.volumeNumber, args.issueNumber],
+      [args.journalID, args.volumeNumber, args.issueNumber, args.userID],
     );
 
-    // Return error if issue was not created
+    // Return error if the journal does not exist under this user
     if (createIssueResult.rowCount == 0) {
       return {
-        error: "Could not create issue",
+        error: `Journal with ID ${args.journalID} does not exist`,
       };
     }
 
