@@ -164,7 +164,7 @@ export async function createRubricQuestion(
       `INSERT INTO "rubric_questions" (
          rubric_id,
          section,
-         index,
+         "index",
          question,
          score_explanations
        )
