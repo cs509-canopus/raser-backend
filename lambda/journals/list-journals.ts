@@ -32,7 +32,8 @@ export interface ListJournalsArgs {
 export interface JournalInfo {
   id: string;
   name: string;
-  description: string;
+  description: string | null;
+  coverImage: string | null;
   issueCount: number;
 }
 
@@ -57,7 +58,8 @@ export async function listJournals(
         journals.id, 
         journals.name, 
         journals.description, 
-        COUNT(issues.id) as issueCount
+        journals.cover_image AS "coverImage",
+        COUNT(issues.id) AS "issueCount"
        FROM journals
        LEFT JOIN issues ON issues.journal_id = journals.id
        WHERE journals.owner_id = $2
