@@ -108,7 +108,7 @@ export async function deleteRubricQuestion(
         `DELETE FROM "rubric_questions"
          WHERE rubric_id = $1::uuid
          AND section = $2
-         AND question_index = $3
+         AND index = $3
          RETURNING rubric_id`,
         [args.rubricID, args.section, args.index],
       );
