@@ -19,6 +19,44 @@ describeWithDatabase("listJournals", () => {
     expect(other.journals).toEqual([]);
   });
 
+  it("returns coverImage when the journal has a cover image", async () => {
+    // journal1 has cover_image set
+    const result = await listJournals({ userID: IDS.editor1 });
+    if (result.error) throw new Error(result.error);
+
+    expect(result.journals).toHaveLength(1);
+    expect(result.journals![0]).toHaveProperty(
+      "coverImage",
+      "https://plant-journal.example.com/cover.png",
+    );
+  });
+
+  it("returns coverImage as null when the journal has no cover image", async () => {
+    // journal2 has cover_image NULL
+    const result = await listJournals({ userID: IDS.editor2 });
+    if (result.error) throw new Error(result.error);
+
+    expect(result.journals).toHaveLength(1);
+    expect(result.journals![0]).toHaveProperty("coverImage", null);
+  });
+
+  it("handler returns coverImage as null when the journal has no cover image", async () => {
+    const result = await handler(buildEvent({ userID: IDS.editor2 }));
+    expect(result.statusCode).toBe(200);
+    const [journal] = JSON.parse(result.body).journals;
+    expect(journal).toHaveProperty("coverImage", null);
+  });
+
+  it("handler returns coverImage as a URL", async () => {
+    const result = await handler(buildEvent({ userID: IDS.editor1 }));
+    expect(result.statusCode).toBe(200);
+    const [journal] = JSON.parse(result.body).journals;
+    expect(journal.coverImage).toBe(
+      "https://plant-journal.example.com/cover.png",
+    );
+    expect(() => new URL(journal.coverImage)).not.toThrow();
+  });
+
   it("returns an empty list for a user with no journals", async () => {
     const result = await listJournals({ userID: NEW_USER_ID });
     expect(result.journals).toEqual([]);
