@@ -383,6 +383,73 @@ export class ApiStack extends cdk.Stack {
       "POST",
       new apigateway.LambdaIntegration(duplicateRubricFunction),
     );
+    // QUESTION ENDPOINTS
+
+    const createQuestionFunction = this.createLambda({
+      id: "CreateQuestion",
+      entry: path.join(
+        __dirname,
+        "..",
+        "lambda",
+        "questions",
+        "create-question.ts",
+      ),
+      dbAccess: true,
+    });
+
+    // POST /rubrics/{rubricID}/questions
+    const rubricsQuestionsResource =
+      rubricsRubricIDResource.addResource("questions");
+
+    rubricsQuestionsResource.addMethod(
+      "POST",
+      new apigateway.LambdaIntegration(createQuestionFunction),
+    );
+
+    const deleteQuestionFunction = this.createLambda({
+      id: "DeleteQuestion",
+      entry: path.join(
+        __dirname,
+        "..",
+        "lambda",
+        "questions",
+        "delete-question.ts",
+      ),
+      dbAccess: true,
+    });
+
+    const editQuestionFunction = this.createLambda({
+      id: "EditQuestion",
+      entry: path.join(
+        __dirname,
+        "..",
+        "lambda",
+        "questions",
+        "edit-question.ts",
+      ),
+      dbAccess: true,
+    });
+
+    const rubricQuestionResource =
+      rubricsQuestionsResource
+        .addResource("{section}")
+        .addResource("{index}");
+
+    // DELETE /rubrics/{rubricID}/questions
+
+    rubricQuestionResource.addMethod(
+      "DELETE",
+      new apigateway.LambdaIntegration(deleteQuestionFunction),
+    );
+
+    // PATCH /rubrics/{rubricID}/questions
+
+    rubricQuestionResource.addMethod(
+      "PATCH",
+      new apigateway.LambdaIntegration(editQuestionFunction),
+    );
+
+  
   }
 
   private createLambda({
